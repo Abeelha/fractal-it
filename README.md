@@ -10,6 +10,30 @@ Transform any website into a unique fractal artwork! This browser extension take
 - Customizable fractal generation rules
 - Developer-friendly architecture for easy modifications
 
+## 🌈 Examples
+
+Each website generates a unique fractal based on its HTML structure. Here are some examples of the visualizations you can create:
+
+### Cube Structure
+
+![Cube-like fractal structure](assets/images/cube.png)
+
+### Circle Pattern
+
+![Circular fractal pattern](assets/images/circle.png)
+
+### Arrow Formation
+
+![Arrow-shaped fractal](assets/images/arrow.png)
+
+### Extension Menu
+
+![The extension popup menu](assets/images/menu.png)
+
+### Singularity Effect
+
+![Singularity fractal effect](assets/images/singularity.png)
+
 ## 🚀 Getting Started
 
 ### Prerequisites
