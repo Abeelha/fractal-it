@@ -1,6 +1,7 @@
 import { generateFractal, updateFractalSections } from "../fractal/generator";
 
 let cachedHtml = "";
+let fractalActive = false;
 
 let sectionConfig = {
   header: true,
@@ -9,18 +10,32 @@ let sectionConfig = {
   section: true,
 };
 
+cachedHtml = document.documentElement.outerHTML;
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "UPDATE_SECTIONS") {
     sectionConfig = message.sections;
-    updateFractalSections(cachedHtml, sectionConfig);
+    if (fractalActive) {
+      updateFractalSections(cachedHtml, sectionConfig);
+    }
+    sendResponse({ success: true });
+    return true;
+  }
+
+  if (message.action === "GENERATE_FRACTAL") {
+    if (!fractalActive) {
+      generateAndDisplayFractal();
+      fractalActive = true;
+    }
     sendResponse({ success: true });
     return true;
   }
 });
 
-cachedHtml = document.documentElement.outerHTML;
-const fractalCanvas = generateFractal(cachedHtml, sectionConfig);
-displayFractal(fractalCanvas);
+function generateAndDisplayFractal() {
+  const fractalCanvas = generateFractal(cachedHtml, sectionConfig);
+  displayFractal(fractalCanvas);
+}
 
 function displayFractal(fractalCanvas: HTMLCanvasElement) {
   const container = document.createElement("div");
@@ -44,7 +59,10 @@ function displayFractal(fractalCanvas: HTMLCanvasElement) {
   closeButton.style.border = "none";
   closeButton.style.borderRadius = "4px";
   closeButton.style.cursor = "pointer";
-  closeButton.onclick = () => container.remove();
+  closeButton.onclick = () => {
+    container.remove();
+    fractalActive = false;
+  };
 
   container.appendChild(closeButton);
   document.body.appendChild(container);

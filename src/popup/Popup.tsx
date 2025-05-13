@@ -5,15 +5,19 @@ type SectionType = 'all' | 'header' | 'footer' | 'body' | 'section';
 const Popup: React.FC = () => {
     const [selectedSection, setSelectedSection] = useState<SectionType>('all');
     const [selectionLocked, setSelectionLocked] = useState(false);
+    const [autoFractal, setAutoFractal] = useState(false);
     const [isLoaded, setIsLoaded] = useState(false);
 
     useEffect(() => {
-        chrome.storage.sync.get(['selectedSection', 'selectionLocked'], (result) => {
+        chrome.storage.sync.get(['selectedSection', 'selectionLocked', 'autoFractal'], (result) => {
             if (result.selectedSection) {
                 setSelectedSection(result.selectedSection as SectionType);
             }
             if (result.selectionLocked !== undefined) {
                 setSelectionLocked(result.selectionLocked);
+            }
+            if (result.autoFractal !== undefined) {
+                setAutoFractal(result.autoFractal);
             }
             setIsLoaded(true);
         });
@@ -55,7 +59,15 @@ const Popup: React.FC = () => {
                 target: { tabId: tab.id },
                 files: ['content.js'],
             });
-            setTimeout(updateFractalSections, 100);
+
+            setTimeout(async () => {
+                if (tab.id) {
+                    await chrome.tabs.sendMessage(tab.id, {
+                        action: 'GENERATE_FRACTAL'
+                    });
+                    setTimeout(updateFractalSections, 100);
+                }
+            }, 100);
         }
     };
 
@@ -64,6 +76,18 @@ const Popup: React.FC = () => {
         setSelectionLocked(newLockState);
 
         chrome.storage.sync.set({ selectionLocked: newLockState });
+    };
+
+    const toggleAutoFractal = () => {
+        const newAutoState = !autoFractal;
+        setAutoFractal(newAutoState);
+
+        chrome.storage.sync.set({ autoFractal: newAutoState });
+
+        chrome.runtime.sendMessage({
+            action: 'SET_AUTO_FRACTAL',
+            enabled: newAutoState
+        });
     };
 
     if (!isLoaded) {
@@ -127,17 +151,41 @@ const Popup: React.FC = () => {
                 </button>
             </div>
 
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8, width: '100%', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                        style={{
+                            ...resetButtonStyle,
+                            background: selectionLocked ? '#BD93F9' : '#44475A',
+                        }}
+                        onClick={toggleLock}
+                    >
+                        {selectionLocked ? 'Unlock' : 'Lock'}
+                    </button>
+                </div>
+                <button style={mainButtonStyle} onClick={handleFractalize}>Fractalize!</button>
+            </div>
+
+            <div
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    width: '100%',
+                    padding: '8px 0',
+                    borderTop: '1px solid #44475A'
+                }}
+            >
+                <span style={{ fontSize: 14 }}>Auto Fractal</span>
                 <button
                     style={{
-                        ...resetButtonStyle,
-                        background: selectionLocked ? '#BD93F9' : '#44475A',
+                        ...toggleButtonStyle,
+                        background: autoFractal ? '#50FA7B' : '#44475A'
                     }}
-                    onClick={toggleLock}
+                    onClick={toggleAutoFractal}
                 >
-                    {selectionLocked ? 'Unlock' : 'Lock'}
+                    {autoFractal ? 'ON' : 'OFF'}
                 </button>
-                <button style={mainButtonStyle} onClick={handleFractalize}>Fractalize!</button>
             </div>
 
             <div style={{ fontSize: 11, color: '#666', marginTop: 8 }}>
@@ -184,6 +232,19 @@ const resetButtonStyle = {
     fontSize: 14,
     cursor: 'pointer',
     outline: 'none',
+};
+
+const toggleButtonStyle = {
+    width: '60px',
+    color: '#F8F8F2',
+    border: 'none',
+    borderRadius: 6,
+    padding: '4px 10px',
+    fontWeight: 600,
+    fontSize: 13,
+    cursor: 'pointer',
+    outline: 'none',
+    transition: 'background 0.2s'
 };
 
 export default Popup;
