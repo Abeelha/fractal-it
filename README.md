@@ -83,10 +83,6 @@ Contributions are welcome! Feel free to:
 - Fix bugs
 - Improve documentation
 
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## 🙏 Acknowledgments
 
 - Inspired by the beauty of fractals and web development
