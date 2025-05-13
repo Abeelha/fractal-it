@@ -211,9 +211,25 @@ function makeSectionFractal(
       new THREE.Float32BufferAttribute(vertices, 3)
     );
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-    material = new THREE.LineBasicMaterial({ vertexColors: true });
-    mesh = new THREE.Line(geometry, material);
-    return mesh;
+
+    material = new THREE.PointsMaterial({
+      vertexColors: true,
+      size: 0.6 + (tagInfluence % 5) * 0.1,
+      sizeAttenuation: true,
+    });
+    mesh = new THREE.Points(geometry, material);
+
+    const lineMaterial = new THREE.LineBasicMaterial({
+      vertexColors: true,
+      linewidth: 3,
+    });
+    const lineMesh = new THREE.Line(geometry, lineMaterial);
+
+    const group = new THREE.Group();
+    group.add(mesh);
+    group.add(lineMesh);
+
+    return group;
   } else if (section === "footer") {
     geometry = new THREE.BufferGeometry();
     const vertices: number[] = [];
@@ -245,9 +261,25 @@ function makeSectionFractal(
       new THREE.Float32BufferAttribute(vertices, 3)
     );
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-    material = new THREE.LineBasicMaterial({ vertexColors: true });
-    mesh = new THREE.Line(geometry, material);
-    return mesh;
+
+    material = new THREE.PointsMaterial({
+      vertexColors: true,
+      size: 0.3 + (classInfluence % 3) * 0.1,
+      sizeAttenuation: true,
+    });
+    mesh = new THREE.Points(geometry, material);
+
+    const lineMaterial = new THREE.LineBasicMaterial({
+      vertexColors: true,
+      linewidth: 2,
+    });
+    const lineMesh = new THREE.Line(geometry, lineMaterial);
+
+    const group = new THREE.Group();
+    group.add(mesh);
+    group.add(lineMesh);
+
+    return group;
   } else if (section === "body") {
     geometry = new THREE.BufferGeometry();
     const vertices: number[] = [];
@@ -276,9 +308,25 @@ function makeSectionFractal(
       new THREE.Float32BufferAttribute(vertices, 3)
     );
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-    material = new THREE.LineBasicMaterial({ vertexColors: true });
-    mesh = new THREE.Line(geometry, material);
-    return mesh;
+
+    material = new THREE.PointsMaterial({
+      vertexColors: true,
+      size: 0.4 + (tagInfluence % 4) * 0.2,
+      sizeAttenuation: true,
+    });
+    mesh = new THREE.Points(geometry, material);
+
+    const lineMaterial = new THREE.LineBasicMaterial({
+      vertexColors: true,
+      linewidth: 2,
+    });
+    const lineMesh = new THREE.Line(geometry, lineMaterial);
+
+    const group = new THREE.Group();
+    group.add(mesh);
+    group.add(lineMesh);
+
+    return group;
   } else if (section === "section") {
     geometry = new THREE.BufferGeometry();
     const vertices: number[] = [];
@@ -347,8 +395,13 @@ function makeSectionFractal(
       new THREE.Float32BufferAttribute(vertices, 3)
     );
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-    material = new THREE.LineBasicMaterial({ vertexColors: true });
+
+    material = new THREE.LineBasicMaterial({
+      vertexColors: true,
+      linewidth: 3,
+    });
     mesh = new THREE.LineSegments(geometry, material);
+
     return mesh;
   } else {
     geometry = new THREE.BufferGeometry();
@@ -381,9 +434,25 @@ function makeSectionFractal(
       new THREE.Float32BufferAttribute(vertices, 3)
     );
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-    material = new THREE.LineBasicMaterial({ vertexColors: true });
-    mesh = new THREE.Line(geometry, material);
-    return mesh;
+
+    material = new THREE.PointsMaterial({
+      vertexColors: true,
+      size: 0.5 + (uniqueClassCount % 5) * 0.2,
+      sizeAttenuation: true,
+    });
+    mesh = new THREE.Points(geometry, material);
+
+    const lineMaterial = new THREE.LineBasicMaterial({
+      vertexColors: true,
+      linewidth: 2,
+    });
+    const lineMesh = new THREE.Line(geometry, lineMaterial);
+
+    const group = new THREE.Group();
+    group.add(mesh);
+    group.add(lineMesh);
+
+    return group;
   }
 }
 
