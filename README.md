@@ -16,23 +16,24 @@ Each website generates a unique fractal based on its HTML structure. Here are so
 
 ### Cube Structure
 
-![Cube-like fractal structure](assets/images/cube.png)
+![Cube-like fractal structure](https://github.com/user-attachments/assets/0392fe6d-1609-458f-9aae-4426373c73f1)
 
 ### Circle Pattern
 
-![Circular fractal pattern](assets/images/circle.png)
+![Circular fractal pattern](https://github.com/user-attachments/assets/ed5254aa-9055-4aef-a4ed-26bbe2473717)
 
 ### Arrow Formation
 
-![Arrow-shaped fractal](assets/images/arrow.png)
-
-### Extension Menu
-
-![The extension popup menu](assets/images/menu.png)
+![Arrow-shaped fractal](https://github.com/user-attachments/assets/18153d36-0f08-4292-a729-9a400eb82d21)
 
 ### Singularity Effect
 
-![Singularity fractal effect](assets/images/singularity.png)
+![Singularity fractal effect](https://github.com/user-attachments/assets/f9970d2d-8c81-4c16-abce-b6a2c0cf911f)
+
+### Extension Menu
+
+![The extension popup menu](https://github.com/user-attachments/assets/cdeab09f-a651-498f-9527-c5fde5972a4d)
+
 
 ## 🚀 Getting Started
 
