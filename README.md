@@ -14,6 +14,11 @@ Transform any website into a unique fractal artwork! This browser extension take
 
 Each website generates a unique fractal based on its HTML structure. Here are some examples of the visualizations you can create:
 
+
+### Web Structure
+![image](https://github.com/user-attachments/assets/3a822bf0-f5c7-473e-9294-c890fa63a48b)
+
+
 ### Cube Structure
 
 ![Cube-like fractal structure](https://github.com/user-attachments/assets/0392fe6d-1609-458f-9aae-4426373c73f1)
