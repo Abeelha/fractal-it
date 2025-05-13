@@ -1,8 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+
+type SectionType = 'all' | 'header' | 'footer' | 'body' | 'section';
 
 const Popup: React.FC = () => {
-    const [selectedSection, setSelectedSection] = useState<'all' | 'header' | 'footer' | 'body' | 'section'>('all');
+    const [selectedSection, setSelectedSection] = useState<SectionType>('all');
     const [selectionLocked, setSelectionLocked] = useState(false);
+    const [isLoaded, setIsLoaded] = useState(false);
+
+    useEffect(() => {
+        chrome.storage.sync.get(['selectedSection', 'selectionLocked'], (result) => {
+            if (result.selectedSection) {
+                setSelectedSection(result.selectedSection as SectionType);
+            }
+            if (result.selectionLocked !== undefined) {
+                setSelectionLocked(result.selectionLocked);
+            }
+            setIsLoaded(true);
+        });
+    }, []);
 
     const getSectionState = (section: string): boolean => {
         if (selectedSection === 'all') return true;
@@ -24,9 +39,12 @@ const Popup: React.FC = () => {
         }
     };
 
-    const handleSectionSelect = (section: 'all' | 'header' | 'footer' | 'body' | 'section') => {
+    const handleSectionSelect = (section: SectionType) => {
         if (selectionLocked) return;
         setSelectedSection(section);
+
+        chrome.storage.sync.set({ selectedSection: section });
+
         setTimeout(updateFractalSections, 50);
     };
 
@@ -42,8 +60,15 @@ const Popup: React.FC = () => {
     };
 
     const toggleLock = () => {
-        setSelectionLocked(!selectionLocked);
+        const newLockState = !selectionLocked;
+        setSelectionLocked(newLockState);
+
+        chrome.storage.sync.set({ selectionLocked: newLockState });
     };
+
+    if (!isLoaded) {
+        return <div style={{ width: 320, height: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>Loading...</div>;
+    }
 
     return (
         <div style={{
