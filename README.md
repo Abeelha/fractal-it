@@ -16,7 +16,7 @@ Transform any website into a unique fractal artwork! This browser extension take
 
 - Node.js (v16 or higher)
 - npm or yarn
-- A modern web browser (Chrome, Firefox, or Edge)
+- A modern web browser (Chrome, Firefox, or Edge, Opera)
 
 ### Installation
 
