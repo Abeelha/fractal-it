@@ -23,6 +23,69 @@ const EnhancedPopup: React.FC = () => {
         isExecuted: false
     });
 
+    useEffect(() => {
+        const loadState = async () => {
+            try {
+                const result = await chrome.storage.local.get(['fractalState']);
+                if (result.fractalState) {
+                    const savedState = result.fractalState;
+                    setState(prev => ({
+                        ...prev,
+                        isExecuted: savedState.isExecuted || false,
+                        cachedModes: new Set(savedState.cachedModes || [])
+                    }));
+                    console.log('🎨 Popup: Loaded saved state:', savedState);
+                }
+
+                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                if (tab.id) {
+                    try {
+                        await chrome.tabs.sendMessage(tab.id, { action: 'PING' });
+
+                        const response = await chrome.tabs.sendMessage(tab.id, {
+                            action: 'GET_CACHED_MODES'
+                        });
+
+                        if (response.success && response.cachedModes) {
+                            setState(prev => ({
+                                ...prev,
+                                cachedModes: new Set(response.cachedModes),
+                                isExecuted: response.cachedModes.length > 0,
+                                isConnected: true
+                            }));
+                            console.log('🎨 Popup: Synced with content script:', response.cachedModes);
+                        }
+                    } catch (error) {
+                        console.log('🎨 Popup: Content script not loaded or no cached modes');
+                    }
+                }
+            } catch (error) {
+                console.error('🎨 Popup: Error loading state:', error);
+            }
+        };
+
+        loadState();
+    }, []);
+
+    useEffect(() => {
+        const saveState = async () => {
+            try {
+                const stateToSave = {
+                    isExecuted: state.isExecuted,
+                    cachedModes: Array.from(state.cachedModes)
+                };
+                await chrome.storage.local.set({ fractalState: stateToSave });
+                console.log('🎨 Popup: State saved:', stateToSave);
+            } catch (error) {
+                console.error('🎨 Popup: Error saving state:', error);
+            }
+        };
+
+        if (state.isExecuted) {
+            saveState();
+        }
+    }, [state.isExecuted, state.cachedModes]);
+
     const presets = {
         chill: {
             name: '🌊 Chill Vibes',
@@ -122,14 +185,13 @@ const EnhancedPopup: React.FC = () => {
     };
 
     const selectPreset = async (presetKey: string) => {
-        if (state.isGenerating) return; // Prevent spam clicking
+        if (state.isGenerating) return;
 
         console.log(`🎨 Popup: Selecting preset "${presetKey}"`);
         console.log(`🎨 Popup: isExecuted=${state.isExecuted}, cachedModes=`, Array.from(state.cachedModes));
 
         setState(prev => ({ ...prev, currentPreset: presetKey }));
 
-        // If already executed and this mode is cached, switch instantly
         if (state.isExecuted && state.cachedModes.has(presetKey)) {
             console.log(`🎨 Popup: Switching to cached mode "${presetKey}"`);
             setState(prev => ({ ...prev, isGenerating: true }));
@@ -148,7 +210,6 @@ const EnhancedPopup: React.FC = () => {
                 setState(prev => ({ ...prev, isGenerating: false }));
             }
         }
-        // If not cached but executed, generate new mode
         else if (state.isExecuted) {
             console.log(`🎨 Popup: Generating new mode "${presetKey}"`);
             await generateNewMode(presetKey);

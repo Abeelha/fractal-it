@@ -13,7 +13,10 @@ class FractalViewer {
   private isActive = false;
   private analyzer = new HTMLAnalyzer();
   private currentFeatures: HTMLFeatures | null = null;
-  private cachedModes: Map<string, HTMLCanvasElement> = new Map();
+  private cachedModes: Map<
+    string,
+    { canvas: HTMLCanvasElement; generator: EnhancedFractalGenerator }
+  > = new Map();
   private currentMode: string | null = null;
 
   constructor() {
@@ -57,6 +60,12 @@ class FractalViewer {
             );
             this.switchToMode(message.mode);
             sendResponse({ success: true });
+            return true;
+
+          case "GET_CACHED_MODES":
+            console.log("Fractal-it Enhanced: Get cached modes request");
+            const cachedModesList = Array.from(this.cachedModes.keys());
+            sendResponse({ success: true, cachedModes: cachedModesList });
             return true;
 
           case "ANALYZE_WEBSITE":
@@ -123,13 +132,14 @@ class FractalViewer {
         this.currentFeatures = this.analyzeCurrentPage();
       }
 
-      this.generator = new EnhancedFractalGenerator();
+      const generator = new EnhancedFractalGenerator();
       const html = document.documentElement.outerHTML;
-      const canvas = this.generator.generateFractal(html, sections, settings);
+      const canvas = generator.generateFractal(html, sections, settings);
 
       if (mode) {
-        this.cachedModes.set(mode, canvas.cloneNode(true) as HTMLCanvasElement);
+        this.cachedModes.set(mode, { canvas, generator });
         this.currentMode = mode;
+        this.generator = generator;
         console.log(`🎨 Fractal-it Enhanced: Mode "${mode}" cached`);
       }
 
@@ -151,14 +161,15 @@ class FractalViewer {
   }
 
   private switchToMode(mode: string) {
-    const cachedCanvas = this.cachedModes.get(mode);
-    if (!cachedCanvas) {
+    const cachedData = this.cachedModes.get(mode);
+    if (!cachedData) {
       console.warn(`Mode "${mode}" not found in cache`);
       return;
     }
 
     console.log(`🎨 Fractal-it Enhanced: Switching to cached mode "${mode}"`);
     this.currentMode = mode;
+    this.generator = cachedData.generator;
 
     if (this.container) {
       const currentCanvas = this.container.querySelector("canvas");
@@ -166,14 +177,21 @@ class FractalViewer {
         currentCanvas.remove();
       }
 
-      const newCanvas = cachedCanvas.cloneNode(true) as HTMLCanvasElement;
-      this.container.appendChild(newCanvas);
+      this.container.appendChild(cachedData.canvas);
 
       const oldControls = document.querySelector(".fractal-controls");
       if (oldControls) {
         oldControls.remove();
       }
       this.showControls();
+
+      console.log(
+        `🎨 Fractal-it Enhanced: Successfully switched to mode "${mode}"`
+      );
+    } else {
+      console.error(
+        "🎨 Fractal-it Enhanced: No container found for mode switch"
+      );
     }
   }
 
@@ -308,31 +326,49 @@ class FractalViewer {
     }
 
     if (this.container) {
-      this.container.style.opacity = "0";
-      this.container.style.transition = "opacity 0.5s ease";
-      setTimeout(() => {
-        if (this.container) {
-          this.container.remove();
-          this.container = null;
-        }
-      }, 500);
+      this.container.remove();
+      this.container = null;
     }
 
-    const controls = document.querySelector(".fractal-controls");
-    if (controls) {
+    const allContainers = document.querySelectorAll(".fractal-container");
+    allContainers.forEach((container) => {
+      container.remove();
+    });
+
+    const allControls = document.querySelectorAll(".fractal-controls");
+    allControls.forEach((controls) => {
       controls.remove();
-    }
+    });
 
-    if (this.generator) {
+
+    document.body.style.overflow = "";
+    document.documentElement.style.overflow = "";
+
+    if (this.generator && this.currentMode) {
+      const cachedData = this.cachedModes.get(this.currentMode);
+      if (!cachedData || cachedData.generator !== this.generator) {
+        try {
+          this.generator.dispose();
+        } catch (error) {
+          console.warn("Error disposing generator:", error);
+        }
+      }
+    } else if (this.generator) {
       try {
         this.generator.dispose();
       } catch (error) {
         console.warn("Error disposing generator:", error);
       }
-      this.generator = null;
     }
 
+    this.generator = null;
     this.isActive = false;
+
+    console.log(
+      `🎨 Fractal-it Enhanced: Fractal closed completely. Cached modes: ${this.cachedModes.size}`
+    );
+
+    document.body.offsetHeight;
   }
 
   private injectStyles() {
@@ -354,7 +390,6 @@ class FractalViewer {
         display: flex;
         justify-content: center;
         align-items: center;
-        animation: fadeIn 0.5s ease;
       }
 
       .fractal-container canvas {
@@ -370,7 +405,6 @@ class FractalViewer {
         top: 20px;
         right: 20px;
         z-index: 1000000;
-        animation: slideInRight 0.5s ease;
       }
 
       .fractal-control-panel {
@@ -494,16 +528,6 @@ class FractalViewer {
 
       .fractal-btn-text {
         letter-spacing: 1px;
-      }
-
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-      }
-
-      @keyframes slideInRight {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
       }
     `;
 
