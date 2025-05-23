@@ -54,7 +54,7 @@ chrome.webNavigation.onCompleted.addListener((details) => {
   if (details.frameId === 0) {
     console.log(
       "Navigation completed, auto-fractal enabled:",
-      autoFractalEnabled
+      autoFractalEnabled,
     );
     injectFractalScript(details.tabId);
   }

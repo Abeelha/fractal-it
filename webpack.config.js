@@ -7,11 +7,13 @@ module.exports = {
     entry: {
         background: './src/background/index.ts',
         content: './src/content/index.ts',
+        enhancedContent: './src/content/init.ts',
         popup: './src/popup/index.tsx',
     },
     output: {
         path: path.resolve(__dirname, 'dist'),
         filename: '[name].js',
+        clean: true,
     },
     module: {
         rules: [
@@ -42,5 +44,9 @@ module.exports = {
             chunks: ['popup'],
         }),
     ],
-    devtool: false,
+    devtool: 'source-map',
+    optimization: {
+        minimize: false,
+        splitChunks: false,
+    },
 };

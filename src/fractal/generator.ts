@@ -27,7 +27,7 @@ let currentRenderer: THREE.WebGLRenderer | null = null;
 
 export function generateFractal(
   html: string,
-  sections = { header: true, footer: true, body: true, section: true }
+  sections = { header: true, footer: true, body: true, section: true },
 ): HTMLCanvasElement {
   const hash = hashString(html);
   const params = generateFractalParams(hash);
@@ -61,7 +61,7 @@ export function generateFractal(
     75,
     window.innerWidth / window.innerHeight,
     0.1,
-    1000
+    1000,
   );
   const renderer = new THREE.WebGLRenderer({ alpha: true });
   renderer.setClearColor(0x000000, 1);
@@ -88,7 +88,7 @@ export function generateFractal(
       tagCounts,
       classCounts,
       hash,
-      0
+      0,
     );
     scene.add(mesh);
     meshList.push(mesh);
@@ -100,7 +100,7 @@ export function generateFractal(
       tagCounts,
       classCounts,
       hash,
-      1
+      1,
     );
     scene.add(mesh);
     meshList.push(mesh);
@@ -112,7 +112,7 @@ export function generateFractal(
       tagCounts,
       classCounts,
       hash,
-      2
+      2,
     );
     scene.add(mesh);
     meshList.push(mesh);
@@ -124,7 +124,7 @@ export function generateFractal(
       tagCounts,
       classCounts,
       hash,
-      3
+      3,
     );
     scene.add(mesh);
     meshList.push(mesh);
@@ -136,7 +136,7 @@ export function generateFractal(
       tagCounts,
       classCounts,
       hash,
-      4
+      4,
     );
     scene.add(mesh);
     meshList.push(mesh);
@@ -172,7 +172,7 @@ function makeSectionFractal(
   tagCounts: any,
   classCounts: any,
   hash: number,
-  offset: number
+  offset: number,
 ): THREE.Object3D {
   let geometry: THREE.BufferGeometry;
   let material: THREE.Material;
@@ -202,13 +202,13 @@ function makeSectionFractal(
       const color = new THREE.Color(
         `hsl(${
           (i * 360) / params.iterations + tagInfluence * 10 + offset * 30
-        },100%,${60 - (classInfluence % 30)}%)`
+        },100%,${60 - (classInfluence % 30)}%)`,
       );
       colors.push(color.r, color.g, color.b);
     }
     geometry.setAttribute(
       "position",
-      new THREE.Float32BufferAttribute(vertices, 3)
+      new THREE.Float32BufferAttribute(vertices, 3),
     );
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
 
@@ -252,13 +252,13 @@ function makeSectionFractal(
       const color = new THREE.Color(
         `hsl(${
           (z * 30 + 180 + uniqueClassCount * 10 + offset * 30) % 360
-        },100%,${50 - (tagInfluence % 20)}%)`
+        },100%,${50 - (tagInfluence % 20)}%)`,
       );
       colors.push(color.r, color.g, color.b);
     }
     geometry.setAttribute(
       "position",
-      new THREE.Float32BufferAttribute(vertices, 3)
+      new THREE.Float32BufferAttribute(vertices, 3),
     );
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
 
@@ -299,13 +299,13 @@ function makeSectionFractal(
       const color = new THREE.Color(
         `hsl(${(t * 60 + tagInfluence * 10 + offset * 30) % 360},100%,${
           70 - (classInfluence % 30)
-        }%)`
+        }%)`,
       );
       colors.push(color.r, color.g, color.b);
     }
     geometry.setAttribute(
       "position",
-      new THREE.Float32BufferAttribute(vertices, 3)
+      new THREE.Float32BufferAttribute(vertices, 3),
     );
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
 
@@ -338,7 +338,7 @@ function makeSectionFractal(
       len: number,
       angle: number,
       tilt: number,
-      depth: number
+      depth: number,
     ) {
       if (depth === 0 || len < 0.5) return;
       const nx = x + Math.cos(angle) * Math.cos(tilt) * len;
@@ -348,7 +348,7 @@ function makeSectionFractal(
       const color = new THREE.Color(
         `hsl(${
           (depth * 60 + len * 10 + tagInfluence * 10 + offset * 30) % 360
-        },100%,${60 - (classInfluence % 30)}%)`
+        },100%,${60 - (classInfluence % 30)}%)`,
       );
       colors.push(color.r, color.g, color.b, color.r, color.g, color.b);
       branch(
@@ -358,7 +358,7 @@ function makeSectionFractal(
         len * (0.7 + Math.random() * 0.2),
         angle + params.a * 0.2 + tagInfluence * 0.01,
         tilt + params.b * 0.2 + classInfluence * 0.01,
-        depth - 1
+        depth - 1,
       );
       branch(
         nx,
@@ -367,7 +367,7 @@ function makeSectionFractal(
         len * (0.7 + Math.random() * 0.2),
         angle - params.b * 0.2 - tagInfluence * 0.01,
         tilt - params.c * 0.2 - classInfluence * 0.01,
-        depth - 1
+        depth - 1,
       );
       if (depth % 2 === 0) {
         branch(
@@ -377,7 +377,7 @@ function makeSectionFractal(
           len * (0.7 + Math.random() * 0.2),
           angle + params.c * 0.3 + tagInfluence * 0.01,
           tilt - params.d * 0.3 - tagInfluence * 0.01,
-          depth - 1
+          depth - 1,
         );
       }
     }
@@ -388,11 +388,11 @@ function makeSectionFractal(
       10 + tagInfluence,
       Math.PI / 2,
       0,
-      7 + (classInfluence % 4)
+      7 + (classInfluence % 4),
     );
     geometry.setAttribute(
       "position",
-      new THREE.Float32BufferAttribute(vertices, 3)
+      new THREE.Float32BufferAttribute(vertices, 3),
     );
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
 
@@ -423,7 +423,7 @@ function makeSectionFractal(
         const color = new THREE.Color(
           `hsl(${(spiralIdx * 60 + (i * 360) / params.iterations) % 360},100%,${
             50 + ((spiralIdx * 5) % 40)
-          }%)`
+          }%)`,
         );
         colors.push(color.r, color.g, color.b);
       }
@@ -431,7 +431,7 @@ function makeSectionFractal(
     }
     geometry.setAttribute(
       "position",
-      new THREE.Float32BufferAttribute(vertices, 3)
+      new THREE.Float32BufferAttribute(vertices, 3),
     );
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
 
@@ -485,7 +485,7 @@ export function updateFractalSections(
     footer: boolean;
     body: boolean;
     section: boolean;
-  }
+  },
 ) {
   if (
     currentRenderer &&
