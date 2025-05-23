@@ -4,19 +4,23 @@ import { FractalSection, RenderSettings } from '../../fractal/enhancedGenerator'
 
 interface PopupState {
     isGenerating: boolean;
-    currentPreset: string;
+    currentPreset: string | null;
     intensity: 'low' | 'medium' | 'high';
     style: 'organic' | 'geometric' | 'chaotic';
     isConnected: boolean;
+    cachedModes: Set<string>;
+    isExecuted: boolean;
 }
 
 const EnhancedPopup: React.FC = () => {
     const [state, setState] = useState<PopupState>({
         isGenerating: false,
-        currentPreset: 'balanced',
+        currentPreset: null,
         intensity: 'medium',
         style: 'organic',
-        isConnected: false
+        isConnected: false,
+        cachedModes: new Set(),
+        isExecuted: false
     });
 
     const presets = {
@@ -36,17 +40,17 @@ const EnhancedPopup: React.FC = () => {
         },
         intense: {
             name: '🔥 Intense',
-            description: 'Maximum visual impact (may lag)',
+            description: 'Maximum visual impact',
             algorithms: ['lorenz', 'tree', 'dragon'],
             performance: 'medium',
-            settings: { quality: 'high', animation: true, complexity: 0.9 }
+            settings: { quality: 'high', animation: true, complexity: 0.8 }
         },
         matrix: {
             name: '🟢 Matrix Mode',
             description: 'Green digital rain aesthetic',
-            algorithms: ['sierpinski', 'mandelbrot'],
+            algorithms: ['sierpinski'],
             performance: 'good',
-            settings: { quality: 'high', animation: true, complexity: 0.7, theme: 'matrix' }
+            settings: { quality: 'medium', animation: true, complexity: 0.5 }
         }
     };
 
@@ -60,6 +64,8 @@ const EnhancedPopup: React.FC = () => {
     };
 
     const generateFractal = async () => {
+        if (!state.currentPreset) return;
+
         setState(prev => ({ ...prev, isGenerating: true }));
 
         try {
@@ -96,10 +102,16 @@ const EnhancedPopup: React.FC = () => {
             await chrome.tabs.sendMessage(tab.id, {
                 action: 'GENERATE_ENHANCED_FRACTAL',
                 sections,
-                settings
+                settings,
+                mode: state.currentPreset
             });
 
-            setState(prev => ({ ...prev, isConnected: true }));
+            setState(prev => ({
+                ...prev,
+                isConnected: true,
+                isExecuted: true,
+                cachedModes: new Set([...prev.cachedModes, state.currentPreset!])
+            }));
 
         } catch (error) {
             console.error('Fractal generation failed:', error);
@@ -109,8 +121,82 @@ const EnhancedPopup: React.FC = () => {
         }
     };
 
-    const selectPreset = (presetKey: string) => {
+    const selectPreset = async (presetKey: string) => {
+        if (state.isGenerating) return; // Prevent spam clicking
+
+        console.log(`🎨 Popup: Selecting preset "${presetKey}"`);
+        console.log(`🎨 Popup: isExecuted=${state.isExecuted}, cachedModes=`, Array.from(state.cachedModes));
+
         setState(prev => ({ ...prev, currentPreset: presetKey }));
+
+        // If already executed and this mode is cached, switch instantly
+        if (state.isExecuted && state.cachedModes.has(presetKey)) {
+            console.log(`🎨 Popup: Switching to cached mode "${presetKey}"`);
+            setState(prev => ({ ...prev, isGenerating: true }));
+
+            try {
+                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                if (tab.id) {
+                    await chrome.tabs.sendMessage(tab.id, {
+                        action: 'SWITCH_CACHED_MODE',
+                        mode: presetKey
+                    });
+                }
+            } catch (error) {
+                console.error('Mode switch failed:', error);
+            } finally {
+                setState(prev => ({ ...prev, isGenerating: false }));
+            }
+        }
+        // If not cached but executed, generate new mode
+        else if (state.isExecuted) {
+            console.log(`🎨 Popup: Generating new mode "${presetKey}"`);
+            await generateNewMode(presetKey);
+        } else {
+            console.log(`🎨 Popup: Not executed yet, preset selected: "${presetKey}"`);
+        }
+    };
+
+    const generateNewMode = async (presetKey: string) => {
+        setState(prev => ({ ...prev, isGenerating: true }));
+
+        try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (!tab.id) return;
+
+            const preset = presets[presetKey as keyof typeof presets];
+            const sections: FractalSection[] = preset.algorithms.map((algo, i) => ({
+                name: `section-${i}`,
+                algorithm: algo,
+                enabled: true,
+                position: new THREE.Vector3(0, 0, 0),
+                scale: 1
+            }));
+
+            const settings: RenderSettings = {
+                ...preset.settings,
+                background: 'dark',
+                lighting: true,
+                postProcessing: false
+            } as RenderSettings;
+
+            await chrome.tabs.sendMessage(tab.id, {
+                action: 'GENERATE_ENHANCED_FRACTAL',
+                sections,
+                settings,
+                mode: presetKey
+            });
+
+            setState(prev => ({
+                ...prev,
+                cachedModes: new Set([...prev.cachedModes, presetKey])
+            }));
+
+        } catch (error) {
+            console.error('New mode generation failed:', error);
+        } finally {
+            setState(prev => ({ ...prev, isGenerating: false }));
+        }
     };
 
     return (
@@ -142,16 +228,19 @@ const EnhancedPopup: React.FC = () => {
                     <button
                         style={{
                             ...styles.generateButton,
-                            ...(state.isGenerating ? styles.generating : {})
+                            ...(state.isGenerating ? styles.generating : {}),
+                            ...((!state.currentPreset || state.isExecuted) ? styles.disabledButton : {})
                         }}
                         onClick={generateFractal}
-                        disabled={state.isGenerating}
+                        disabled={state.isGenerating || !state.currentPreset || state.isExecuted}
                     >
                         <span style={styles.buttonIcon}>
                             {state.isGenerating ? '◈' : '◆'}
                         </span>
                         <span style={styles.buttonText}>
-                            {state.isGenerating ? 'GENERATING MATRIX...' : 'EXECUTE FRACTAL'}
+                            {!state.currentPreset ? 'SELECT MODE FIRST' :
+                                state.isExecuted ? 'SWITCH MODES BELOW' :
+                                    state.isGenerating ? 'GENERATING MATRIX...' : 'EXECUTE FRACTAL'}
                         </span>
                     </button>
                 </div>
@@ -164,16 +253,26 @@ const EnhancedPopup: React.FC = () => {
                                 key={key}
                                 style={{
                                     ...styles.presetCard,
-                                    ...(state.currentPreset === key ? styles.presetActive : {})
+                                    ...(state.currentPreset === key ? styles.presetActive : {}),
+                                    ...(state.isGenerating ? styles.presetDisabled : {})
                                 }}
                                 onClick={() => selectPreset(key)}
+                                disabled={state.isGenerating}
                             >
-                                <div style={styles.presetName}>{preset.name}</div>
+                                <div style={styles.presetHeader}>
+                                    <div style={styles.presetName}>{preset.name}</div>
+                                    <div style={styles.presetPerfDot}>
+                                        <span style={{
+                                            ...styles.perfDot,
+                                            ...getPerformanceColor(preset.performance)
+                                        }}></span>
+                                    </div>
+                                </div>
                                 <div style={styles.presetDesc}>{preset.description}</div>
-                                <div style={styles.presetPerf}>
-                                    PERF: <span style={getPerformanceColor(preset.performance)}>
-                                        {preset.performance.toUpperCase()}
-                                    </span>
+                                <div style={styles.presetStatus}>
+                                    {state.cachedModes.has(key) && (
+                                        <span style={styles.cachedIndicator}>● CACHED</span>
+                                    )}
                                 </div>
                             </button>
                         ))}
@@ -194,8 +293,14 @@ const EnhancedPopup: React.FC = () => {
                             </span>
                         </div>
                         <div style={styles.infoItem}>
-                            <span style={styles.infoLabel}>PRESET:</span>
-                            <span style={styles.infoValue}>{state.currentPreset.toUpperCase()}</span>
+                            <span style={styles.infoLabel}>MODE:</span>
+                            <span style={styles.infoValue}>
+                                {state.currentPreset ? state.currentPreset.toUpperCase() : 'NONE'}
+                            </span>
+                        </div>
+                        <div style={styles.infoItem}>
+                            <span style={styles.infoLabel}>CACHED:</span>
+                            <span style={styles.infoValue}>{state.cachedModes.size}/4</span>
                         </div>
                     </div>
                 </div>
@@ -213,11 +318,11 @@ const EnhancedPopup: React.FC = () => {
 
 function getPerformanceColor(performance: string) {
     const colors = {
-        high: { color: '#00ff88' },
-        good: { color: '#ffff00' },
-        medium: { color: '#ff8800' }
+        high: { backgroundColor: '#00ff88', boxShadow: '0 0 8px #00ff88' },
+        good: { backgroundColor: '#ffff00', boxShadow: '0 0 8px #ffff00' },
+        medium: { backgroundColor: '#ff8800', boxShadow: '0 0 8px #ff8800' }
     };
-    return colors[performance as keyof typeof colors] || { color: '#ff0000' };
+    return colors[performance as keyof typeof colors] || { backgroundColor: '#ff0000', boxShadow: '0 0 8px #ff0000' };
 }
 
 const styles = {
@@ -342,6 +447,14 @@ const styles = {
         background: 'linear-gradient(135deg, #004400 0%, #006600 100%)',
         animation: 'glow 1s infinite alternate'
     },
+    disabledButton: {
+        background: 'linear-gradient(135deg, #222222 0%, #333333 100%)',
+        border: '2px solid #666666',
+        color: '#666666',
+        cursor: 'not-allowed',
+        boxShadow: 'none',
+        textShadow: 'none'
+    },
     buttonIcon: {
         fontSize: 16,
         animation: 'rotate 2s linear infinite'
@@ -371,6 +484,19 @@ const styles = {
         boxShadow: '0 0 15px rgba(0, 255, 136, 0.4)',
         transform: 'scale(1.02)'
     },
+    presetDisabled: {
+        background: 'rgba(0, 255, 136, 0.05)',
+        border: '1px solid rgba(0, 255, 136, 0.3)',
+        color: '#ff8800',
+        cursor: 'not-allowed',
+        transform: 'scale(0.98)'
+    },
+    presetHeader: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 4
+    },
     presetName: {
         fontSize: 11,
         fontWeight: 'bold',
@@ -383,10 +509,29 @@ const styles = {
         marginBottom: 4,
         lineHeight: 1.2
     },
-    presetPerf: {
+    presetPerfDot: {
+        width: 12,
+        height: 12,
+        borderRadius: '50%',
+        border: '1px solid rgba(0, 255, 136, 0.3)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+    },
+    perfDot: {
+        width: 8,
+        height: 8,
+        borderRadius: '50%',
+        display: 'block'
+    },
+    presetStatus: {
+        fontSize: 8,
+        opacity: 0.8
+    },
+    cachedIndicator: {
         fontSize: 8,
         fontWeight: 'bold',
-        letterSpacing: 1
+        color: '#ff8800'
     },
     infoGrid: {
         display: 'grid',

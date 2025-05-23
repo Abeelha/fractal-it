@@ -13,6 +13,8 @@ class FractalViewer {
   private isActive = false;
   private analyzer = new HTMLAnalyzer();
   private currentFeatures: HTMLFeatures | null = null;
+  private cachedModes: Map<string, HTMLCanvasElement> = new Map();
+  private currentMode: string | null = null;
 
   constructor() {
     console.log("Fractal-it Enhanced: FractalViewer constructor called");
@@ -40,7 +42,20 @@ class FractalViewer {
 
           case "GENERATE_ENHANCED_FRACTAL":
             console.log("Fractal-it Enhanced: Generate fractal request");
-            this.generateFractal(message.sections, message.settings);
+            this.generateFractal(
+              message.sections,
+              message.settings,
+              message.mode
+            );
+            sendResponse({ success: true });
+            return true;
+
+          case "SWITCH_CACHED_MODE":
+            console.log(
+              "Fractal-it Enhanced: Switch cached mode:",
+              message.mode
+            );
+            this.switchToMode(message.mode);
             sendResponse({ success: true });
             return true;
 
@@ -48,12 +63,6 @@ class FractalViewer {
             console.log("Fractal-it Enhanced: Analyze website request");
             const features = this.analyzeCurrentPage();
             sendResponse({ success: true, features });
-            return true;
-
-          case "EXPORT_FRACTAL_IMAGE":
-            console.log("Fractal-it Enhanced: Export image request");
-            this.exportImage();
-            sendResponse({ success: true });
             return true;
 
           case "UPDATE_FRACTAL_SETTINGS":
@@ -91,12 +100,24 @@ class FractalViewer {
 
   private async generateFractal(
     sections: FractalSection[],
-    settings: RenderSettings
+    settings: RenderSettings,
+    mode?: string
   ) {
     try {
       console.log("Fractal-it Enhanced: Starting fractal generation...");
 
-      this.closeFractal();
+      if (!this.container) {
+        this.closeFractal();
+      } else {
+        const currentCanvas = this.container.querySelector("canvas");
+        if (currentCanvas) {
+          currentCanvas.remove();
+        }
+        const oldControls = document.querySelector(".fractal-controls");
+        if (oldControls) {
+          oldControls.remove();
+        }
+      }
 
       if (!this.currentFeatures) {
         this.currentFeatures = this.analyzeCurrentPage();
@@ -105,6 +126,12 @@ class FractalViewer {
       this.generator = new EnhancedFractalGenerator();
       const html = document.documentElement.outerHTML;
       const canvas = this.generator.generateFractal(html, sections, settings);
+
+      if (mode) {
+        this.cachedModes.set(mode, canvas.cloneNode(true) as HTMLCanvasElement);
+        this.currentMode = mode;
+        console.log(`🎨 Fractal-it Enhanced: Mode "${mode}" cached`);
+      }
 
       this.displayFractal(canvas);
       this.showControls();
@@ -120,6 +147,33 @@ class FractalViewer {
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
+    }
+  }
+
+  private switchToMode(mode: string) {
+    const cachedCanvas = this.cachedModes.get(mode);
+    if (!cachedCanvas) {
+      console.warn(`Mode "${mode}" not found in cache`);
+      return;
+    }
+
+    console.log(`🎨 Fractal-it Enhanced: Switching to cached mode "${mode}"`);
+    this.currentMode = mode;
+
+    if (this.container) {
+      const currentCanvas = this.container.querySelector("canvas");
+      if (currentCanvas) {
+        currentCanvas.remove();
+      }
+
+      const newCanvas = cachedCanvas.cloneNode(true) as HTMLCanvasElement;
+      this.container.appendChild(newCanvas);
+
+      const oldControls = document.querySelector(".fractal-controls");
+      if (oldControls) {
+        oldControls.remove();
+      }
+      this.showControls();
     }
   }
 
@@ -188,17 +242,45 @@ class FractalViewer {
     controls.className = "fractal-controls";
     controls.innerHTML = `
       <div class="fractal-control-panel">
-        <h3>🎨 Fractal Controls</h3>
-        <button class="fractal-btn fractal-btn-export">📸 Export</button>
-        <button class="fractal-btn fractal-btn-close">❌ Close</button>
+        <div class="fractal-header">
+          <div class="fractal-logo">◇ FRACTAL MATRIX ◇</div>
+          <div class="fractal-mode">${
+            this.currentMode?.toUpperCase() || "UNKNOWN"
+          } MODE</div>
+        </div>
+
+        <div class="fractal-border-top"></div>
+
+        <div class="fractal-instructions">
+          <div class="fractal-instruction-title">► NAVIGATION CONTROLS</div>
+          <div class="fractal-instruction">🖱️ DRAG → ROTATE VIEW</div>
+          <div class="fractal-instruction">🖱️ SCROLL → ZOOM IN/OUT</div>
+          <div class="fractal-instruction">⌨️ ESC → EXIT MATRIX</div>
+        </div>
+
+        <div class="fractal-border-mid"></div>
+
+        <div class="fractal-stats">
+          <div class="fractal-stat-item">
+            <span class="fractal-stat-label">CACHED MODES:</span>
+            <span class="fractal-stat-value">${this.cachedModes.size}/4</span>
+          </div>
+          <div class="fractal-stat-item">
+            <span class="fractal-stat-label">ACTIVE MODE:</span>
+            <span class="fractal-stat-value">${
+              this.currentMode?.toUpperCase() || "NONE"
+            }</span>
+          </div>
+        </div>
+
+        <div class="fractal-border-bottom"></div>
+
+        <button class="fractal-btn fractal-btn-close">
+          <span class="fractal-btn-icon">❌</span>
+          <span class="fractal-btn-text">EXIT MATRIX</span>
+        </button>
       </div>
     `;
-
-    controls
-      .querySelector(".fractal-btn-export")
-      ?.addEventListener("click", () => {
-        this.exportImage();
-      });
 
     controls
       .querySelector(".fractal-btn-close")
@@ -212,13 +294,6 @@ class FractalViewer {
   private updateSettings(settings: RenderSettings) {
     if (this.generator) {
       this.generateFractal([], settings);
-    }
-  }
-
-  private exportImage() {
-    console.log("Fractal-it Enhanced: Exporting image...");
-    if (this.generator) {
-      this.generator.exportImage();
     }
   }
 
@@ -274,7 +349,7 @@ class FractalViewer {
         width: 100vw;
         height: 100vh;
         z-index: 999999;
-        background: rgba(0, 0, 0, 0.9);
+        background: rgba(0, 0, 0, 0.95);
         backdrop-filter: blur(10px);
         display: flex;
         justify-content: center;
@@ -285,8 +360,9 @@ class FractalViewer {
       .fractal-container canvas {
         max-width: 90vw;
         max-height: 90vh;
-        border-radius: 16px;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        border-radius: 8px;
+        box-shadow: 0 0 30px #00ff88, 0 0 60px rgba(0, 255, 136, 0.3);
+        border: 2px solid #00ff88;
       }
 
       .fractal-controls {
@@ -298,49 +374,126 @@ class FractalViewer {
       }
 
       .fractal-control-panel {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
         backdrop-filter: blur(20px);
-        border-radius: 16px;
-        padding: 20px;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-        color: white;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        min-width: 200px;
+        border: 2px solid #00ff88;
+        border-radius: 8px;
+        padding: 16px;
+        box-shadow: 0 0 30px rgba(0, 255, 136, 0.3), inset 0 0 20px rgba(0, 255, 136, 0.1);
+        color: #00ff88;
+        font-family: "Courier New", monospace;
+        min-width: 280px;
+        position: relative;
       }
 
-      .fractal-control-panel h3 {
-        margin: 0 0 15px 0;
-        font-size: 16px;
-        font-weight: 600;
+      .fractal-header {
         text-align: center;
+        margin-bottom: 12px;
+      }
+
+      .fractal-logo {
+        font-size: 14px;
+        font-weight: bold;
+        letter-spacing: 2px;
+        text-shadow: 0 0 10px #00ff88;
+        margin-bottom: 4px;
+      }
+
+      .fractal-mode {
+        font-size: 10px;
+        opacity: 0.8;
+        letter-spacing: 1px;
+      }
+
+      .fractal-border-top, .fractal-border-mid, .fractal-border-bottom {
+        height: 1px;
+        background: linear-gradient(90deg, transparent, #00ff88, transparent);
+        margin: 12px 0;
+        opacity: 0.6;
+      }
+
+      .fractal-instructions {
+        margin-bottom: 12px;
+      }
+
+      .fractal-instruction-title {
+        font-size: 11px;
+        font-weight: bold;
+        margin-bottom: 8px;
+        text-shadow: 0 0 5px #00ff88;
+      }
+
+      .fractal-instruction {
+        font-size: 9px;
+        margin-bottom: 4px;
+        opacity: 0.9;
+        line-height: 1.3;
+      }
+
+      .fractal-stats {
+        margin-bottom: 12px;
+      }
+
+      .fractal-stat-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 6px;
+        font-size: 9px;
+      }
+
+      .fractal-stat-label {
+        opacity: 0.8;
+      }
+
+      .fractal-stat-value {
+        font-weight: bold;
+        text-shadow: 0 0 3px #00ff88;
       }
 
       .fractal-btn {
         width: 100%;
         padding: 12px;
-        margin: 8px 0;
-        background: rgba(255, 255, 255, 0.2);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        border-radius: 8px;
-        color: white;
-        font-size: 14px;
-        font-weight: 500;
+        background: linear-gradient(135deg, #001122 0%, #003344 100%);
+        border: 2px solid #00ff88;
+        color: #00ff88;
+        font-size: 12px;
+        font-weight: bold;
         cursor: pointer;
-        transition: all 0.2s ease;
-        display: block;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-family: "Courier New", monospace;
+        border-radius: 4px;
+        text-shadow: 0 0 5px #00ff88;
       }
 
       .fractal-btn:hover {
-        background: rgba(255, 255, 255, 0.3);
+        background: linear-gradient(135deg, #002244 0%, #004466 100%);
+        box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
         transform: translateY(-1px);
       }
 
-      .fractal-btn-export {
-        background: linear-gradient(45deg, #56ab2f, #a8e6cf);
+      .fractal-btn-close {
+        background: linear-gradient(45deg, #440000, #660000);
+        border-color: #ff4444;
+        color: #ff4444;
+        text-shadow: 0 0 5px #ff4444;
       }
 
-      .fractal-btn-close {
-        background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+      .fractal-btn-close:hover {
+        background: linear-gradient(45deg, #660000, #880000);
+        border-color: #ff6666;
+        box-shadow: 0 0 15px rgba(255, 68, 68, 0.4);
+      }
+
+      .fractal-btn-icon {
+        font-size: 14px;
+      }
+
+      .fractal-btn-text {
+        letter-spacing: 1px;
       }
 
       @keyframes fadeIn {
