@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import * as THREE from 'three';
-import { FractalSection, RenderSettings } from '../../fractal/enhancedGenerator';
+import { OptimizedRenderSettings } from '../../fractal/optimizedGenerator';
 
 interface PopupState {
     isGenerating: boolean;
@@ -87,33 +86,40 @@ const EnhancedPopup: React.FC = () => {
     }, [state.isExecuted, state.cachedModes]);
 
     const presets = {
-        chill: {
-            name: '🌊 Chill Vibes',
-            description: 'Smooth, low-intensity fractals',
-            algorithms: ['spirograph'],
+        'dna-helix': {
+            name: '🧬 HTML DNA Helix',
+            description: 'DNA-like helixes from HTML tags',
+            mode: 'dna-helix',
             performance: 'high',
-            settings: { quality: 'medium', animation: true, complexity: 0.3 }
+            settings: { quality: 'medium' as const, animation: true }
         },
-        balanced: {
-            name: '⚡ Balanced',
-            description: 'Perfect mix of beauty and performance',
-            algorithms: ['mandelbrot', 'julia'],
+        'crystal-growth': {
+            name: '💎 Crystal Growth',
+            description: 'Growing crystalline structures',
+            mode: 'crystal-growth',
+            performance: 'high',
+            settings: { quality: 'medium' as const, animation: true }
+        },
+        'neural-network': {
+            name: '🧠 Living Neural Network',
+            description: 'Pulsing neurons with flowing signals',
+            mode: 'neural-network',
             performance: 'good',
-            settings: { quality: 'high', animation: true, complexity: 0.6 }
+            settings: { quality: 'high' as const, animation: true }
         },
-        intense: {
-            name: '🔥 Intense',
-            description: 'Maximum visual impact',
-            algorithms: ['lorenz', 'tree', 'dragon'],
-            performance: 'medium',
-            settings: { quality: 'high', animation: true, complexity: 0.8 }
+        'spider-web': {
+            name: '🕷️ Spider Web Dimension',
+            description: 'Multi-layered webs with flying particles',
+            mode: 'spider-web',
+            performance: 'high',
+            settings: { quality: 'high' as const, animation: true }
         },
-        matrix: {
-            name: '🟢 Matrix Mode',
-            description: 'Green digital rain aesthetic',
-            algorithms: ['sierpinski'],
-            performance: 'good',
-            settings: { quality: 'medium', animation: true, complexity: 0.5 }
+        'mandala': {
+            name: '✨ Geometric Mandala',
+            description: 'Sacred geometry patterns',
+            mode: 'mandala',
+            performance: 'high',
+            settings: { quality: 'high' as const, animation: true }
         }
     };
 
@@ -147,26 +153,21 @@ const EnhancedPopup: React.FC = () => {
             }
 
             const preset = presets[state.currentPreset as keyof typeof presets];
-            const sections: FractalSection[] = preset.algorithms.map((algo, i) => ({
-                name: `section-${i}`,
-                algorithm: algo,
-                enabled: true,
-                position: new THREE.Vector3(0, 0, 0),
-                scale: 1
-            }));
 
-            const settings: RenderSettings = {
-                ...preset.settings,
-                background: 'dark',
-                lighting: true,
-                postProcessing: false
-            } as RenderSettings;
+            const settings: OptimizedRenderSettings = {
+                mode: preset.mode,
+                quality: preset.settings.quality,
+                animation: preset.settings.animation,
+                particleCount: 5000,
+                enableBloom: false,
+                enableDepthOfField: false,
+                cacheStrategy: 'balanced'
+            };
 
             await chrome.tabs.sendMessage(tab.id, {
                 action: 'GENERATE_ENHANCED_FRACTAL',
-                sections,
                 settings,
-                mode: state.currentPreset
+                mode: preset.mode
             });
 
             setState(prev => ({
@@ -226,26 +227,21 @@ const EnhancedPopup: React.FC = () => {
             if (!tab.id) return;
 
             const preset = presets[presetKey as keyof typeof presets];
-            const sections: FractalSection[] = preset.algorithms.map((algo, i) => ({
-                name: `section-${i}`,
-                algorithm: algo,
-                enabled: true,
-                position: new THREE.Vector3(0, 0, 0),
-                scale: 1
-            }));
 
-            const settings: RenderSettings = {
-                ...preset.settings,
-                background: 'dark',
-                lighting: true,
-                postProcessing: false
-            } as RenderSettings;
+            const settings: OptimizedRenderSettings = {
+                mode: preset.mode,
+                quality: preset.settings.quality,
+                animation: preset.settings.animation,
+                particleCount: 5000,
+                enableBloom: false,
+                enableDepthOfField: false,
+                cacheStrategy: 'balanced'
+            };
 
             await chrome.tabs.sendMessage(tab.id, {
                 action: 'GENERATE_ENHANCED_FRACTAL',
-                sections,
                 settings,
-                mode: presetKey
+                mode: preset.mode
             });
 
             setState(prev => ({
@@ -344,8 +340,8 @@ const EnhancedPopup: React.FC = () => {
                     <h3 style={styles.sectionTitle}>SYSTEM INFO</h3>
                     <div style={styles.infoGrid}>
                         <div style={styles.infoItem}>
-                            <span style={styles.infoLabel}>ALGORITHMS:</span>
-                            <span style={styles.infoValue}>7 LOADED</span>
+                            <span style={styles.infoLabel}>MODES:</span>
+                            <span style={styles.infoValue}>5 OPTIMIZED</span>
                         </div>
                         <div style={styles.infoItem}>
                             <span style={styles.infoLabel}>STATUS:</span>
@@ -361,7 +357,7 @@ const EnhancedPopup: React.FC = () => {
                         </div>
                         <div style={styles.infoItem}>
                             <span style={styles.infoLabel}>CACHED:</span>
-                            <span style={styles.infoValue}>{state.cachedModes.size}/4</span>
+                            <span style={styles.infoValue}>{state.cachedModes.size}/5</span>
                         </div>
                     </div>
                 </div>
@@ -370,7 +366,7 @@ const EnhancedPopup: React.FC = () => {
             {/* Footer */}
             <div style={styles.footer}>
                 <div style={styles.footerText}>
-                    ▲ NEURAL MATHEMATICS ENGINE v2.1 ▲
+                    ▲ OPTIMIZED FRACTAL ENGINE v3.0 ▲
                 </div>
             </div>
         </div>

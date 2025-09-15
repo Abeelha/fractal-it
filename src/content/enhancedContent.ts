@@ -1,23 +1,24 @@
 import {
-  EnhancedFractalGenerator,
-  FractalSection,
-  RenderSettings,
-} from "../fractal/enhancedGenerator";
+  OptimizedFractalGenerator,
+  OptimizedFractalMode,
+  OptimizedRenderSettings,
+} from "../fractal/optimizedGenerator";
 import { HTMLAnalyzer, HTMLFeatures } from "../utils/htmlAnalyzer";
 
 console.log("Fractal-it Enhanced: Content script loading...");
 
 class FractalViewer {
-  private generator: EnhancedFractalGenerator | null = null;
+  private generator: OptimizedFractalGenerator | null = null;
   private container: HTMLElement | null = null;
   private isActive = false;
   private analyzer = new HTMLAnalyzer();
   private currentFeatures: HTMLFeatures | null = null;
   private cachedModes: Map<
     string,
-    { canvas: HTMLCanvasElement; generator: EnhancedFractalGenerator }
+    { canvas: HTMLCanvasElement; generator: OptimizedFractalGenerator }
   > = new Map();
-  private currentMode: string | null = null;
+  private currentMode: string = 'tag-based';
+  private performanceMonitor: HTMLElement | null = null;
 
   constructor() {
     console.log("Fractal-it Enhanced: FractalViewer constructor called");
@@ -46,9 +47,8 @@ class FractalViewer {
           case "GENERATE_ENHANCED_FRACTAL":
             console.log("Fractal-it Enhanced: Generate fractal request");
             this.generateFractal(
-              message.sections,
               message.settings,
-              message.mode
+              message.mode || 'tag-based'
             );
             sendResponse({ success: true });
             return true;
@@ -108,9 +108,8 @@ class FractalViewer {
   }
 
   private async generateFractal(
-    sections: FractalSection[],
-    settings: RenderSettings,
-    mode?: string
+    settings?: Partial<OptimizedRenderSettings>,
+    mode: string = 'tag-based'
   ) {
     try {
       console.log("Fractal-it Enhanced: Starting fractal generation...");
@@ -132,16 +131,25 @@ class FractalViewer {
         this.currentFeatures = this.analyzeCurrentPage();
       }
 
-      const generator = new EnhancedFractalGenerator();
+      const generator = new OptimizedFractalGenerator();
       const html = document.documentElement.outerHTML;
-      const canvas = generator.generateFractal(html, sections, settings);
 
-      if (mode) {
-        this.cachedModes.set(mode, { canvas, generator });
-        this.currentMode = mode;
-        this.generator = generator;
-        console.log(`🎨 Fractal-it Enhanced: Mode "${mode}" cached`);
-      }
+      const optimizedSettings: OptimizedRenderSettings = {
+        mode: mode,
+        quality: settings?.quality || 'medium',
+        animation: settings?.animation !== false,
+        particleCount: 5000,
+        enableBloom: false,
+        enableDepthOfField: false,
+        cacheStrategy: 'balanced'
+      };
+
+      const canvas = generator.generateFractal(html, optimizedSettings);
+
+      this.cachedModes.set(mode, { canvas, generator });
+      this.currentMode = mode;
+      this.generator = generator;
+      console.log(`🎨 Fractal-it Enhanced: Mode "${mode}" cached`);
 
       this.displayFractal(canvas);
       this.showControls();
@@ -161,6 +169,14 @@ class FractalViewer {
   }
 
   private switchToMode(mode: string) {
+    if (this.generator) {
+      console.log(`🎨 Fractal-it Enhanced: Switching to mode "${mode}"`);
+      this.currentMode = mode;
+      this.generator.switchMode(mode);
+      this.updateControlsDisplay();
+      return;
+    }
+
     const cachedData = this.cachedModes.get(mode);
     if (!cachedData) {
       console.warn(`Mode "${mode}" not found in cache`);
@@ -258,36 +274,50 @@ class FractalViewer {
   private showControls() {
     const controls = document.createElement("div");
     controls.className = "fractal-controls";
+
+    const modes = this.generator?.getAvailableModes() || [];
+    const modeButtons = modes.map(mode => `
+      <button class="fractal-mode-btn" data-mode="${mode.id}">
+        ${mode.name}
+      </button>
+    `).join('');
+
     controls.innerHTML = `
       <div class="fractal-control-panel">
         <div class="fractal-header">
-          <div class="fractal-logo">◇ FRACTAL MATRIX ◇</div>
-          <div class="fractal-mode">${
-            this.currentMode?.toUpperCase() || "UNKNOWN"
-          } MODE</div>
+          <div class="fractal-logo">◇ FRACTAL-IT OPTIMIZED ◇</div>
+          <div class="fractal-mode" id="current-mode">${this.getModeDisplayName()} MODE</div>
         </div>
 
         <div class="fractal-border-top"></div>
+
+        <div class="fractal-modes">
+          <div class="fractal-mode-title">► SELECT FRACTAL MODE</div>
+          <div class="fractal-mode-grid">
+            ${modeButtons}
+          </div>
+        </div>
+
+        <div class="fractal-border-mid"></div>
 
         <div class="fractal-instructions">
           <div class="fractal-instruction-title">► NAVIGATION CONTROLS</div>
           <div class="fractal-instruction">🖱️ DRAG → ROTATE VIEW</div>
           <div class="fractal-instruction">🖱️ SCROLL → ZOOM IN/OUT</div>
           <div class="fractal-instruction">⌨️ ESC → EXIT MATRIX</div>
+          <div class="fractal-instruction">⌨️ P → PERFORMANCE STATS</div>
         </div>
 
         <div class="fractal-border-mid"></div>
 
-        <div class="fractal-stats">
-          <div class="fractal-stat-item">
-            <span class="fractal-stat-label">CACHED MODES:</span>
-            <span class="fractal-stat-value">${this.cachedModes.size}/4</span>
-          </div>
+        <div class="fractal-stats" id="fractal-stats">
           <div class="fractal-stat-item">
             <span class="fractal-stat-label">ACTIVE MODE:</span>
-            <span class="fractal-stat-value">${
-              this.currentMode?.toUpperCase() || "NONE"
-            }</span>
+            <span class="fractal-stat-value" id="active-mode">${this.getModeDisplayName()}</span>
+          </div>
+          <div class="fractal-stat-item">
+            <span class="fractal-stat-label">FPS:</span>
+            <span class="fractal-stat-value" id="fps-counter">60</span>
           </div>
         </div>
 
@@ -306,13 +336,68 @@ class FractalViewer {
         this.closeFractal();
       });
 
+    controls.querySelectorAll(".fractal-mode-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const mode = (e.target as HTMLElement).dataset.mode;
+        if (mode) {
+          this.switchToMode(mode);
+        }
+      });
+    });
+
     document.body.appendChild(controls);
+
+    this.startPerformanceMonitoring();
   }
 
-  private updateSettings(settings: RenderSettings) {
+  private updateSettings(settings: Partial<OptimizedRenderSettings>) {
     if (this.generator) {
-      this.generateFractal([], settings);
+      this.generateFractal(settings, this.currentMode);
     }
+  }
+
+  private getModeDisplayName(): string {
+    const modes = this.generator?.getAvailableModes() || [];
+    const currentModeInfo = modes.find(m => m.id === this.currentMode);
+    return currentModeInfo?.name || this.currentMode.toUpperCase();
+  }
+
+  private updateControlsDisplay(): void {
+    const modeElement = document.getElementById('current-mode');
+    const activeModeElement = document.getElementById('active-mode');
+
+    if (modeElement) {
+      modeElement.textContent = `${this.getModeDisplayName()} MODE`;
+    }
+    if (activeModeElement) {
+      activeModeElement.textContent = this.getModeDisplayName();
+    }
+
+    document.querySelectorAll('.fractal-mode-btn').forEach(btn => {
+      const btnMode = (btn as HTMLElement).dataset.mode;
+      if (btnMode === this.currentMode) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+  }
+
+  private startPerformanceMonitoring(): void {
+    const updateStats = () => {
+      if (!this.generator || !document.querySelector('.fractal-controls')) return;
+
+      const stats = this.generator.getPerformanceStats();
+      const fpsElement = document.getElementById('fps-counter');
+
+      if (fpsElement) {
+        fpsElement.textContent = stats.fps.toString();
+      }
+
+      requestAnimationFrame(updateStats);
+    };
+
+    updateStats();
   }
 
   closeFractal() {
@@ -528,6 +613,49 @@ class FractalViewer {
 
       .fractal-btn-text {
         letter-spacing: 1px;
+      }
+
+      .fractal-modes {
+        margin-bottom: 12px;
+      }
+
+      .fractal-mode-title {
+        font-size: 11px;
+        font-weight: bold;
+        margin-bottom: 8px;
+        text-shadow: 0 0 5px #00ff88;
+      }
+
+      .fractal-mode-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .fractal-mode-btn {
+        padding: 8px;
+        background: linear-gradient(135deg, #001122 0%, #002233 100%);
+        border: 1px solid #00ff88;
+        color: #00ff88;
+        font-size: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-family: "Courier New", monospace;
+        border-radius: 4px;
+        opacity: 0.7;
+      }
+
+      .fractal-mode-btn:hover {
+        opacity: 1;
+        background: linear-gradient(135deg, #002244 0%, #003355 100%);
+        box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+      }
+
+      .fractal-mode-btn.active {
+        opacity: 1;
+        background: linear-gradient(135deg, #003355 0%, #004466 100%);
+        border-width: 2px;
+        text-shadow: 0 0 5px #00ff88;
       }
     `;
 
