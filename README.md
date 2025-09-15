@@ -42,7 +42,7 @@ Each website generates a unique fractal based on its HTML structure. Here are so
 
 ### Extension Menu
 
-![The extension popup menu](https://github.com/user-attachments/assets/cdeab09f-a651-498f-9527-c5fde5972a4d)
+![The extension popup menu](https://github.com/user-attachments/assets/832171d3-6005-4256-834d-d22345b9f216)
 
 
 ## 🚀 Getting Started
