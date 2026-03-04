@@ -120,6 +120,20 @@ const EnhancedPopup: React.FC = () => {
             mode: 'mandala',
             performance: 'high',
             settings: { quality: 'high' as const, animation: true }
+        },
+        'julia-set': {
+            name: '🌀 Julia Set Cloud',
+            description: 'Mathematical fractal unique to this page',
+            mode: 'julia-set',
+            performance: 'high',
+            settings: { quality: 'medium' as const, animation: true }
+        },
+        'l-system': {
+            name: '🌿 Fractal Tree',
+            description: 'Recursive tree from page structure',
+            mode: 'l-system',
+            performance: 'high',
+            settings: { quality: 'medium' as const, animation: true }
         }
     };
 
