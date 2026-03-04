@@ -696,143 +696,93 @@ export class DynamicFractalAlgorithms {
     params: DynamicFractalParams
   ): THREE.Object3D {
     const group = new THREE.Group();
+    const rng = new SeededRNG(this.pageSeed(features, params) + 100);
 
     const complexity = features.domComplexity.totalElements;
-    const crystalCount = Math.min(Math.floor(complexity / 20), 12);
+    const crystalCount = Math.min(Math.floor(complexity / 20) + 3, 12);
     const baseColors = this.colorSchemes.structural;
 
-    for (let crystalIndex = 0; crystalIndex < crystalCount; crystalIndex++) {
-      const angle = (crystalIndex / crystalCount) * Math.PI * 2;
-      const distance = 8 + Math.random() * 8;
+    const branchPositions: number[] = [];
+    const branchColors: number[] = [];
+
+    const coreGeo = new THREE.OctahedronGeometry(2);
+    const coreMat = new THREE.MeshPhongMaterial({
+      transparent: true,
+      opacity: 0.85
+    });
+    const coreInstances = new THREE.InstancedMesh(coreGeo, coreMat, crystalCount);
+    const matrix = new THREE.Matrix4();
+
+    for (let ci = 0; ci < crystalCount; ci++) {
+      const angle = (ci / crystalCount) * Math.PI * 2;
+      const distance = rng.range(8, 16);
       const centerX = Math.cos(angle) * distance;
       const centerZ = Math.sin(angle) * distance;
 
-      const color = new THREE.Color(baseColors[crystalIndex % baseColors.length]);
-      const branches = 6 + Math.floor(Math.random() * 6);
+      const color = new THREE.Color(baseColors[ci % baseColors.length]);
 
-      // Central crystal core
-      const coreGeometry = new THREE.OctahedronGeometry(2);
-      const coreMaterial = new THREE.MeshPhongMaterial({
-        color: color,
-        emissive: color,
-        emissiveIntensity: 0.4,
-        transparent: true,
-        opacity: 0.8
-      });
+      if (features.colorPalette[ci % features.colorPalette.length]) {
+        try {
+          const pageColor = new THREE.Color(features.colorPalette[ci % features.colorPalette.length]);
+          const hsl = { h: 0, s: 0, l: 0 };
+          pageColor.getHSL(hsl);
+          if (hsl.s > 0.2) color.copy(pageColor.setHSL(hsl.h, Math.max(hsl.s, 0.6), Math.max(hsl.l, 0.45)));
+        } catch (_) { /* keep default */ }
+      }
 
-      const core = new THREE.Mesh(coreGeometry, coreMaterial);
-      core.position.set(centerX, 0, centerZ);
-      group.add(core);
+      matrix.setPosition(centerX, 0, centerZ);
+      coreInstances.setMatrixAt(ci, matrix);
+      coreInstances.setColorAt(ci, color);
 
-      // Growing crystal branches
-      for (let branch = 0; branch < branches; branch++) {
-        const branchAngle = (branch / branches) * Math.PI * 2;
-        const segments = 8 + Math.floor(Math.random() * 8);
+      const branches = rng.int(5, 10);
+      for (let b = 0; b < branches; b++) {
+        const branchAngle = (b / branches) * Math.PI * 2;
+        const segments = rng.int(6, 12);
+        let cx = centerX, cy = 0, cz = centerZ;
 
-        let currentX = centerX;
-        let currentY = 0;
-        let currentZ = centerZ;
+        for (let s = 0; s < segments; s++) {
+          const progress = s / segments;
+          const noise = this.noise3D(cx * 0.1, cy * 0.1, cz * 0.1);
+          cx += Math.cos(branchAngle + noise * 0.6) * rng.range(0.8, 1.8);
+          cy += rng.range(0.5, 1.2) + Math.sin(progress * Math.PI * 4) * 0.3;
+          cz += Math.sin(branchAngle + noise * 0.6) * rng.range(0.8, 1.8);
 
-        for (let segmentIndex = 0; segmentIndex < segments; segmentIndex++) {
-          const progress = segmentIndex / segments;
-          const size = 1.5 * (1 - progress * 0.8);
+          branchPositions.push(cx, cy, cz);
+          branchColors.push(color.r, color.g, color.b);
 
-          // Add some randomness to growth direction
-          const noise = this.noise3D(currentX * 0.1, currentY * 0.1, currentZ * 0.1);
-          const growthX = Math.cos(branchAngle + noise * 0.5) * 1.5;
-          const growthY = 0.8 + Math.sin(progress * Math.PI * 4) * 0.4;
-          const growthZ = Math.sin(branchAngle + noise * 0.5) * 1.5;
-
-          currentX += growthX;
-          currentY += growthY;
-          currentZ += growthZ;
-
-          // Create crystal segment
-          const segmentGeometry = new THREE.OctahedronGeometry(size);
-          const segmentMaterial = new THREE.MeshPhongMaterial({
-            color: color,
-            emissive: color,
-            emissiveIntensity: 0.2 * (1 - progress * 0.5),
-            transparent: true,
-            opacity: 0.7 - progress * 0.3
-          });
-
-          const segmentMesh = new THREE.Mesh(segmentGeometry, segmentMaterial);
-          segmentMesh.position.set(currentX, currentY, currentZ);
-          segmentMesh.rotation.set(
-            Math.random() * Math.PI,
-            Math.random() * Math.PI,
-            Math.random() * Math.PI
-          );
-
-          group.add(segmentMesh);
-
-          // Add connecting crystalline structures
-          if (segmentIndex > 0) {
-            const prevX = currentX - growthX;
-            const prevY = currentY - growthY;
-            const prevZ = currentZ - growthZ;
-
-            const connectionGeometry = new THREE.CylinderGeometry(0.1, 0.2, size * 1.5);
-            const connectionMaterial = new THREE.MeshPhongMaterial({
-              color: color,
-              emissive: color,
-              emissiveIntensity: 0.3,
-              transparent: true,
-              opacity: 0.5
-            });
-
-            const connection = new THREE.Mesh(connectionGeometry, connectionMaterial);
-            connection.position.set(
-              (currentX + prevX) / 2,
-              (currentY + prevY) / 2,
-              (currentZ + prevZ) / 2
-            );
-
-            // Orient the connection
-            const direction = new THREE.Vector3(
-              currentX - prevX,
-              currentY - prevY,
-              currentZ - prevZ
-            ).normalize();
-
-            connection.lookAt(
-              connection.position.x + direction.x,
-              connection.position.y + direction.y,
-              connection.position.z + direction.z
-            );
-
-            group.add(connection);
-          }
-
-          // Create fractal sub-branches
-          if (segmentIndex % 3 === 0 && segmentIndex < segments - 2) {
-            const subBranches = 2 + Math.floor(Math.random() * 3);
-
-            for (let subBranch = 0; subBranch < subBranches; subBranch++) {
-              const subAngle = (subBranch / subBranches) * Math.PI * 2;
-              const subSize = size * 0.6;
-
-              const subX = currentX + Math.cos(subAngle) * 2;
-              const subY = currentY + Math.sin(subAngle) * 1;
-              const subZ = currentZ + Math.sin(subAngle) * 2;
-
-              const subGeometry = new THREE.TetrahedronGeometry(subSize);
-              const subMaterial = new THREE.MeshPhongMaterial({
-                color: color,
-                emissive: color,
-                emissiveIntensity: 0.4,
-                transparent: true,
-                opacity: 0.6
-              });
-
-              const subCrystal = new THREE.Mesh(subGeometry, subMaterial);
-              subCrystal.position.set(subX, subY, subZ);
-              group.add(subCrystal);
+          if (s % 3 === 0 && s < segments - 2) {
+            const subs = rng.int(2, 4);
+            for (let sb = 0; sb < subs; sb++) {
+              const sa = (sb / subs) * Math.PI * 2;
+              branchPositions.push(
+                cx + Math.cos(sa) * rng.range(0.5, 1.5),
+                cy + rng.range(0.2, 0.8),
+                cz + Math.sin(sa) * rng.range(0.5, 1.5)
+              );
+              branchColors.push(color.r * 0.8, color.g * 0.8, color.b * 0.8);
             }
           }
         }
       }
+    }
+
+    coreInstances.instanceMatrix.needsUpdate = true;
+    if (coreInstances.instanceColor) coreInstances.instanceColor.needsUpdate = true;
+    group.add(coreInstances);
+
+    if (branchPositions.length > 0) {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(branchPositions, 3));
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(branchColors, 3));
+      group.add(new THREE.Points(geo, new THREE.PointsMaterial({
+        size: 0.55,
+        vertexColors: true,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        opacity: 0.75,
+        depthWrite: false,
+        sizeAttenuation: true
+      })));
     }
 
     return group;
