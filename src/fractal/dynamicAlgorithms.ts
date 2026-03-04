@@ -589,105 +589,120 @@ export class DynamicFractalAlgorithms {
     params: DynamicFractalParams
   ): THREE.Object3D {
     const group = new THREE.Group();
+    const rng = new SeededRNG(this.pageSeed(features, params) + 300);
 
     const tagTypes = Object.keys(features.tagCounts);
     const helixCount = Math.min(tagTypes.length, 8);
-    const totalHeight = 20;
-    const baseRadius = 8;
+    const totalHeight = 22;
+    const baseRadius = 7;
 
-    for (let helixIndex = 0; helixIndex < helixCount; helixIndex++) {
-      const tag = tagTypes[helixIndex];
+    const nucleotidePositions: THREE.Vector3[] = [];
+    const nucleotideColors: THREE.Color[] = [];
+
+    const bridgeVertices: number[] = [];
+    const bridgeColors: number[] = [];
+
+    for (let hi = 0; hi < helixCount; hi++) {
+      const tag = tagTypes[hi];
       const count = features.tagCounts[tag];
+      if (!count) continue;
 
-      if (count === 0) continue;
+      const radius = baseRadius + hi * 2.2;
+      const points = Math.min(count * 5, 180);
+      const color = this.getColorForTag(tag, params.colorSeed + hi * 50);
 
-      const radius = baseRadius + helixIndex * 2;
-      const points = Math.min(count * 5, 200);
-      const color = this.getColorForTag(tag, params.colorSeed + helixIndex * 50);
-
-      const helixGeometry = new THREE.BufferGeometry();
-      const vertices: number[] = [];
-      const colors: number[] = [];
-
-      for (let i = 0; i < points; i++) {
-        const t = i / points;
-        const angle = t * Math.PI * 8 + helixIndex * Math.PI / 4;
-        const height = t * totalHeight - totalHeight / 2;
-
-        const x = Math.cos(angle) * radius * (1 + Math.sin(t * Math.PI * 6) * 0.3);
-        const y = height;
-        const z = Math.sin(angle) * radius * (1 + Math.cos(t * Math.PI * 4) * 0.3);
-
-        vertices.push(x, y, z);
-        colors.push(color.r, color.g, color.b);
-
-        // Create connecting bridges between helixes
-        if (helixIndex > 0 && i % 10 === 0) {
-          const prevRadius = baseRadius + (helixIndex - 1) * 2;
-          const prevX = Math.cos(angle) * prevRadius;
-          const prevZ = Math.sin(angle) * prevRadius;
-
-          const bridgeGeometry = new THREE.BufferGeometry();
-          const bridgeVertices = [x, y, z, prevX, y, prevZ];
-          bridgeGeometry.setAttribute('position', new THREE.Float32BufferAttribute(bridgeVertices, 3));
-
-          const bridgeMaterial = new THREE.LineBasicMaterial({
-            color: color,
-            opacity: 0.4,
-            transparent: true
-          });
-
-          const bridge = new THREE.Line(bridgeGeometry, bridgeMaterial);
-          group.add(bridge);
-        }
+      if (hi < features.colorPalette.length) {
+        try {
+          const pc = new THREE.Color(features.colorPalette[hi]);
+          const hsl = { h: 0, s: 0, l: 0 };
+          pc.getHSL(hsl);
+          if (hsl.s > 0.15) color.setHSL(hsl.h, Math.max(hsl.s, 0.7), Math.max(hsl.l, 0.45));
+        } catch (_) { /* keep */ }
       }
 
-      helixGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-      helixGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-
-      // Create glowing tubes
-      const tubePoints = [];
-      for (let i = 0; i < vertices.length; i += 3) {
-        tubePoints.push(new THREE.Vector3(vertices[i], vertices[i + 1], vertices[i + 2]));
+      const tubePoints: THREE.Vector3[] = [];
+      for (let i = 0; i < points; i++) {
+        const t = i / points;
+        const angle = t * Math.PI * 8 + hi * Math.PI / 4;
+        const height = t * totalHeight - totalHeight / 2;
+        tubePoints.push(new THREE.Vector3(
+          Math.cos(angle) * radius * (1 + Math.sin(t * Math.PI * 6) * 0.25),
+          height,
+          Math.sin(angle) * radius * (1 + Math.cos(t * Math.PI * 4) * 0.25)
+        ));
       }
 
       if (tubePoints.length > 1) {
         const curve = new THREE.CatmullRomCurve3(tubePoints);
-        const tubeGeometry = new THREE.TubeGeometry(curve, 64, 0.3, 8, false);
-        const tubeMaterial = new THREE.MeshPhongMaterial({
-          color: color,
+        const tubeMat = new THREE.MeshPhongMaterial({
+          color,
           emissive: color,
-          emissiveIntensity: 0.3,
+          emissiveIntensity: 0.35,
           transparent: true,
-          opacity: 0.7
+          opacity: 0.72
         });
-
-        const tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
-        group.add(tube);
+        group.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 60, 0.28, 7, false), tubeMat));
       }
 
-      // Add spiral nucleotide markers
-      for (let i = 0; i < points; i += 15) {
+      for (let i = 0; i < points; i += 14) {
         const t = i / points;
-        const angle = t * Math.PI * 8 + helixIndex * Math.PI / 4;
+        const angle = t * Math.PI * 8 + hi * Math.PI / 4;
         const height = t * totalHeight - totalHeight / 2;
+        nucleotidePositions.push(new THREE.Vector3(
+          Math.cos(angle) * radius,
+          height,
+          Math.sin(angle) * radius
+        ));
+        nucleotideColors.push(color.clone());
+      }
 
-        const x = Math.cos(angle) * radius;
-        const z = Math.sin(angle) * radius;
+      if (hi > 0) {
+        const prevRadius = baseRadius + (hi - 1) * 2.2;
+        for (let i = 0; i < points; i += 10) {
+          const t = i / points;
+          const angle = t * Math.PI * 8 + hi * Math.PI / 4;
+          const height = t * totalHeight - totalHeight / 2;
+          const x = Math.cos(angle) * radius;
+          const z = Math.sin(angle) * radius;
+          const px = Math.cos(angle) * prevRadius;
+          const pz = Math.sin(angle) * prevRadius;
 
-        const nucleotideGeometry = new THREE.SphereGeometry(0.5, 8, 8);
-        const nucleotideMaterial = new THREE.MeshPhongMaterial({
-          color: color,
-          emissive: color,
-          emissiveIntensity: 0.5
-        });
-
-        const nucleotide = new THREE.Mesh(nucleotideGeometry, nucleotideMaterial);
-        nucleotide.position.set(x, height, z);
-        group.add(nucleotide);
+          bridgeVertices.push(x, height, z, px, height, pz);
+          bridgeColors.push(color.r, color.g, color.b, color.r * 0.6, color.g * 0.6, color.b * 0.6);
+        }
       }
     }
 
+    if (nucleotidePositions.length > 0) {
+      const nucleotideGeo = new THREE.SphereGeometry(0.45, 8, 8);
+      const nucleotideMat = new THREE.MeshPhongMaterial({
+        emissiveIntensity: 0.55,
+        transparent: false
+      });
+      const instances = new THREE.InstancedMesh(nucleotideGeo, nucleotideMat, nucleotidePositions.length);
+      const mat4 = new THREE.Matrix4();
+      nucleotidePositions.forEach((pos, i) => {
+        mat4.setPosition(pos);
+        instances.setMatrixAt(i, mat4);
+        instances.setColorAt(i, nucleotideColors[i]);
+      });
+      instances.instanceMatrix.needsUpdate = true;
+      if (instances.instanceColor) instances.instanceColor.needsUpdate = true;
+      group.add(instances);
+    }
+
+    if (bridgeVertices.length > 0) {
+      const bridgeGeo = new THREE.BufferGeometry();
+      bridgeGeo.setAttribute('position', new THREE.Float32BufferAttribute(bridgeVertices, 3));
+      bridgeGeo.setAttribute('color', new THREE.Float32BufferAttribute(bridgeColors, 3));
+      group.add(new THREE.LineSegments(bridgeGeo, new THREE.LineBasicMaterial({
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.4
+      })));
+    }
+
+    void rng;
     return group;
   }
 
