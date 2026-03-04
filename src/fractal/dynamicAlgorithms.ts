@@ -1119,4 +1119,107 @@ export class DynamicFractalAlgorithms {
 
     return group;
   }
+
+  static generateJuliaSetCloud(
+    features: HTMLFeatures,
+    params: DynamicFractalParams
+  ): THREE.Object3D {
+    const group = new THREE.Group();
+    const seed = params.colorSeed;
+
+    // Page-specific Julia constant — maps hash to visually interesting ranges
+    // Re(c): -0.85 to 0.35 | Im(c): -0.35 to 0.35
+    const re = -0.85 + ((seed % 1200) / 1000);
+    const im = -0.35 + ((Math.floor(seed / 1200) % 700) / 1000);
+
+    const resolution = 150; // 150x150 = 22500 points — fast enough, looks good
+    const maxIter = 96;
+    const positions: number[] = [];
+    const colors: number[] = [];
+
+    // Dominant hue from page color palette (if available)
+    let baseHue = (seed % 360) / 360;
+    if (features.colorPalette.length > 0) {
+      try {
+        const hsl = { h: 0, s: 0, l: 0 };
+        new THREE.Color(features.colorPalette[0]).getHSL(hsl);
+        if (hsl.s > 0.1) baseHue = hsl.h;
+      } catch (_) { /* keep default */ }
+    }
+
+    for (let i = 0; i < resolution; i++) {
+      for (let j = 0; j < resolution; j++) {
+        const x0 = (i / resolution - 0.5) * 3.5;
+        const y0 = (j / resolution - 0.5) * 3.5;
+        let x = x0, y = y0;
+        let iter = 0;
+
+        while (x * x + y * y < 4 && iter < maxIter) {
+          const xn = x * x - y * y + re;
+          y = 2 * x * y + im;
+          x = xn;
+          iter++;
+        }
+
+        // Only render boundary points (escaped but not too quickly)
+        if (iter > 1 && iter < maxIter) {
+          // Smooth coloring to eliminate iteration banding
+          const logMod = Math.log(x * x + y * y) / 2;
+          const smoothIter = Math.max(0, iter + 1 - Math.log(logMod) / Math.log(2));
+          const t = Math.min(1, smoothIter / maxIter);
+
+          // Z-extrusion: iteration depth creates 3D relief
+          const z = (t - 0.5) * 18 + Math.sin(x0 * 2.5) * 1.5;
+
+          positions.push(x0 * 8, y0 * 8, z);
+
+          const hue = (baseHue + t * 0.55) % 1;
+          const color = new THREE.Color().setHSL(hue, 0.9, 0.35 + t * 0.5);
+          colors.push(color.r, color.g, color.b);
+        }
+      }
+    }
+
+    if (positions.length === 0) {
+      // Fallback for degenerate c values: simple spiral
+      for (let i = 0; i < 5000; i++) {
+        const t = i / 5000;
+        const angle = t * Math.PI * 20;
+        positions.push(Math.cos(angle) * t * 10, t * 15 - 7.5, Math.sin(angle) * t * 10);
+        const c = new THREE.Color().setHSL((baseHue + t * 0.5) % 1, 0.9, 0.5);
+        colors.push(c.r, c.g, c.b);
+      }
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+    group.add(new THREE.Points(geo, new THREE.PointsMaterial({
+      size: 0.09,
+      vertexColors: true,
+      blending: THREE.AdditiveBlending,
+      transparent: true,
+      opacity: 0.92,
+      depthWrite: false,
+      sizeAttenuation: true
+    })));
+
+    // Thin axis rings to frame the fractal
+    for (let r = 0; r < 3; r++) {
+      const ringGeo = new THREE.RingGeometry(8 + r * 4, 8.15 + r * 4, 64);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color().setHSL((baseHue + r * 0.15) % 1, 0.8, 0.5),
+        transparent: true,
+        opacity: 0.12,
+        side: THREE.DoubleSide
+      });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.rotation.x = Math.PI / 2;
+      ring.userData = { waveSpeed: 0.15 + r * 0.05, wavePhase: r * Math.PI / 1.5 };
+      group.add(ring);
+    }
+
+    return group;
+  }
 }
