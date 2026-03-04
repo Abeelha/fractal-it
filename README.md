@@ -2,7 +2,7 @@
 
 Transform any website into a unique fractal artwork! This browser extension takes the current webpage's HTML structure and converts it into a mesmerizing fractal pattern.
 
-## 🎨 Features
+## Features
 
 - Convert any webpage into a unique fractal visualization
 - Interactive controls for fractal manipulation
@@ -10,7 +10,7 @@ Transform any website into a unique fractal artwork! This browser extension take
 - Customizable fractal generation rules
 - Developer-friendly architecture for easy modifications
 
-## 🌈 Examples
+## Examples
 
 Each website generates a unique fractal based on its HTML structure. Here are some examples of the visualizations you can create:
 
@@ -45,7 +45,7 @@ Each website generates a unique fractal based on its HTML structure. Here are so
 ![Singularity fractal effect](https://github.com/user-attachments/assets/f9970d2d-8c81-4c16-abce-b6a2c0cf911f)
 
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -78,7 +78,7 @@ npm run build
    - Chrome: Go to `chrome://extensions/`, enable "Developer mode", click "Load unpacked", and select the `dist` folder
    - Firefox: Go to `about:debugging#/runtime/this-firefox`, click "Load Temporary Add-on", and select any file in the `dist` folder
 
-## 🛠️ Development
+## Development
 
 ### Project Structure
 
@@ -101,14 +101,14 @@ fractal-it/
 - `npm run test` - Run tests
 - `npm run lint` - Run linter
 
-## 🎯 How It Works
+## How It Works
 
 1. The extension captures the current webpage's HTML structure
 2. The HTML is processed to generate unique fractal parameters
 3. A fractal is generated based on these parameters
 4. Users can interact with the fractal and download the result
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Feel free to:
 
@@ -118,7 +118,7 @@ Contributions are welcome! Feel free to:
 - Fix bugs
 - Improve documentation
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Inspired by the beauty of fractals and web development
 - Built with love for the developer community bzzzz 🐝
