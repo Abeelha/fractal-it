@@ -561,9 +561,15 @@ export class OptimizedFractalGenerator {
 
   private hashCode(str: string): number {
     let hash = 0;
+    if (typeof window !== 'undefined') {
+      const url = window.location.href;
+      for (let i = 0; i < url.length; i++) {
+        hash = ((hash << 5) - hash) + url.charCodeAt(i);
+        hash = hash & hash;
+      }
+    }
     for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
       hash = hash & hash;
     }
     return Math.abs(hash);
