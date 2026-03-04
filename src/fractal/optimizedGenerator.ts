@@ -331,27 +331,72 @@ export class OptimizedFractalGenerator {
     const animate = () => {
       this.animationId = requestAnimationFrame(animate);
 
-      const currentTime = performance.now();
-      const deltaTime = currentTime - lastFrameTime;
-      lastFrameTime = currentTime;
+      const now = performance.now();
+      const t = now * 0.001; // seconds
+      const deltaTime = now - lastFrameTime;
+      lastFrameTime = now;
 
       frameCount++;
-      if (frameCount % 30 === 0) {
+      if (frameCount % 60 === 0) {
         this.performanceMonitor.fps = Math.round(1000 / deltaTime);
         this.performanceMonitor.frameTime = deltaTime;
-
-        if (this.performanceMonitor.fps < 30) {
-          this.reduceQuality();
-        }
+        if (this.performanceMonitor.fps < 30) this.reduceQuality();
       }
 
-      const rotationSpeed = Math.min(0.005, 60 / this.performanceMonitor.fps * 0.005);
+      const rotSpeed = Math.min(0.004, 60 / Math.max(this.performanceMonitor.fps, 1) * 0.004);
 
-      this.currentMeshes.forEach((mesh, index) => {
-        if (mesh.userData.animated !== false) {
-          mesh.rotation.y += rotationSpeed * (1 + index * 0.1);
-          mesh.rotation.x += rotationSpeed * 0.6 * (1 + index * 0.05);
-        }
+      this.currentMeshes.forEach((group, gi) => {
+        group.rotation.y += rotSpeed * (1 + gi * 0.08);
+
+        group.traverse(child => {
+          const ud = child.userData;
+          if (!ud) return;
+
+          if (ud.type === 'neuralParticles') {
+            const pts = child as THREE.Points;
+            const particles = ud.particles as Array<{
+              sx: number; sy: number; sz: number;
+              ex: number; ey: number; ez: number;
+              progress: number; speed: number;
+            }>;
+            const pos = ud.positions as Float32Array;
+            for (let i = 0; i < particles.length; i++) {
+              const p = particles[i];
+              p.progress = (p.progress + p.speed) % 1;
+              const i3 = i * 3;
+              pos[i3]     = p.sx + (p.ex - p.sx) * p.progress;
+              pos[i3 + 1] = p.sy + (p.ey - p.sy) * p.progress;
+              pos[i3 + 2] = p.sz + (p.ez - p.sz) * p.progress;
+            }
+            pts.geometry.attributes.position.needsUpdate = true;
+            return;
+          }
+
+          if (ud.pulseSpeed !== undefined) {
+            const s = 1 + Math.sin(t * ud.pulseSpeed * Math.PI * 2 + (ud.pulsePhase || 0)) * 0.28 * (ud.activity || 0.5);
+            child.scale.setScalar(Math.max(0.05, s));
+          }
+
+          if (ud.flySpeed !== undefined) {
+            ud.flyAngle = ((ud.flyAngle as number) || 0) + (ud.flySpeed as number);
+            child.position.x = Math.cos(ud.flyAngle) * (ud.flyRadius as number);
+            child.position.z = Math.sin(ud.flyAngle) * (ud.flyRadius as number);
+            child.position.y = (ud.flyHeight as number) + Math.sin(t * (ud.bobSpeed as number) + (ud.bobPhase as number)) * 2;
+          }
+
+          if (ud.shimmerSpeed !== undefined && child instanceof THREE.Mesh) {
+            const mat = child.material as THREE.MeshPhongMaterial;
+            if (mat?.transparent) {
+              mat.opacity = (ud.originalOpacity as number) *
+                (0.3 + 0.7 * Math.abs(Math.sin(t * (ud.shimmerSpeed as number) * Math.PI * 2 + (ud.shimmerPhase as number))));
+            }
+          }
+
+          if (ud.waveSpeed !== undefined) {
+            const sc = 1 + Math.sin(t * (ud.waveSpeed as number) * Math.PI * 2 + (ud.wavePhase || 0)) * 0.1;
+            child.scale.setScalar(Math.max(0.05, sc));
+          }
+        });
       });
 
       this.controls.update();
