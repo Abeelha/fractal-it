@@ -1259,10 +1259,10 @@ export class DynamicFractalAlgorithms {
         const tiltAngle = branchAngle + rng.range(-0.12, 0.12);
 
         const newDir = dir.clone();
-        newDir.applyAxisAngle(
-          new THREE.Vector3(rng.range(-1, 1), 0, rng.range(-1, 1)).normalize(),
-          tiltAngle
-        );
+        const axis = new THREE.Vector3(rng.range(-1, 1), 0, rng.range(-1, 1));
+        if (axis.lengthSq() < 1e-12) axis.set(1, 0, 0);
+        axis.normalize();
+        newDir.applyAxisAngle(axis, tiltAngle);
         newDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), spreadAngle);
         newDir.normalize();
 
