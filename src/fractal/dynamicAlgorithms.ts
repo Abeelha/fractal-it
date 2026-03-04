@@ -793,141 +793,144 @@ export class DynamicFractalAlgorithms {
     params: DynamicFractalParams
   ): THREE.Object3D {
     const group = new THREE.Group();
+    const rng = new SeededRNG(this.pageSeed(features, params) + 200);
 
     const complexity = features.domComplexity.totalElements;
-    const nodeCount = Math.min(Math.floor(complexity / 15), 80);
+    const nodeCount = Math.min(Math.floor(complexity / 15) + 8, 60);
+    const tagTypes = Object.keys(features.tagCounts);
+
     const nodes: { position: THREE.Vector3; connections: number[]; activity: number; color: THREE.Color }[] = [];
 
-    // Create neural nodes based on HTML structure
     for (let i = 0; i < nodeCount; i++) {
       const angle = (i / nodeCount) * Math.PI * 2;
-      const radius = 8 + Math.random() * 12;
-      const height = (Math.random() - 0.5) * 15;
+      const radius = rng.range(8, 20);
+      const height = rng.range(-7, 7);
 
-      const position = new THREE.Vector3(
-        Math.cos(angle) * radius,
-        height,
-        Math.sin(angle) * radius
-      );
-
-      const tagTypes = Object.keys(features.tagCounts);
       const tag = tagTypes[i % tagTypes.length];
       const color = this.getColorForTag(tag, params.colorSeed + i * 30);
 
       nodes.push({
-        position,
+        position: new THREE.Vector3(
+          Math.cos(angle) * radius,
+          height,
+          Math.sin(angle) * radius
+        ),
         connections: [],
-        activity: Math.random(),
+        activity: rng.next(),
         color
       });
     }
 
-    // Create neural connections
     for (let i = 0; i < nodes.length; i++) {
-      const maxConnections = 3 + Math.floor(Math.random() * 4);
-
+      const maxConnections = rng.int(2, 5);
       for (let j = 0; j < maxConnections; j++) {
-        const targetIndex = Math.floor(Math.random() * nodes.length);
-        if (targetIndex !== i && !nodes[i].connections.includes(targetIndex)) {
-          nodes[i].connections.push(targetIndex);
+        const target = rng.int(0, nodes.length - 1);
+        if (target !== i && !nodes[i].connections.includes(target)) {
+          nodes[i].connections.push(target);
         }
       }
     }
 
-    // Create animated neural network
-    nodes.forEach((node, nodeIndex) => {
-      // Create pulsing node
-      const nodeGeometry = new THREE.SphereGeometry(0.8, 16, 16);
-      const nodeMaterial = new THREE.MeshPhongMaterial({
+    interface ParticleData {
+      sx: number; sy: number; sz: number;
+      ex: number; ey: number; ez: number;
+      progress: number; speed: number;
+    }
+    const allParticles: ParticleData[] = [];
+    const particleColors: number[] = [];
+
+    nodes.forEach(node => {
+      const nodeGeo = new THREE.SphereGeometry(0.7, 10, 10);
+      const nodeMat = new THREE.MeshPhongMaterial({
         color: node.color,
         emissive: node.color,
         emissiveIntensity: 0.5,
         transparent: true,
         opacity: 0.9
       });
-
-      const nodeMesh = new THREE.Mesh(nodeGeometry, nodeMaterial);
+      const nodeMesh = new THREE.Mesh(nodeGeo, nodeMat);
       nodeMesh.position.copy(node.position);
-
-      // Add pulsing animation data
-      (nodeMesh as any).userData = {
-        originalScale: 1,
-        pulseSpeed: 0.02 + Math.random() * 0.03,
-        pulsePhase: Math.random() * Math.PI * 2,
-        activity: node.activity,
-        baseColor: node.color.clone()
+      nodeMesh.userData = {
+        pulseSpeed: rng.range(0.4, 1.2),
+        pulsePhase: rng.next() * Math.PI * 2,
+        activity: node.activity
       };
-
       group.add(nodeMesh);
 
-      // Create connections with flowing particles
-      node.connections.forEach(targetIndex => {
-        if (targetIndex < nodes.length) {
-          const target = nodes[targetIndex];
+      node.connections.forEach(targetIdx => {
+        if (targetIdx >= nodes.length) return;
+        const target = nodes[targetIdx];
 
-          // Create connection line
-          const connectionGeometry = new THREE.BufferGeometry();
-          const points = [node.position.clone(), target.position.clone()];
-          connectionGeometry.setFromPoints(points);
+        const lineGeo = new THREE.BufferGeometry().setFromPoints([
+          node.position.clone(),
+          target.position.clone()
+        ]);
+        group.add(new THREE.Line(lineGeo, new THREE.LineBasicMaterial({
+          color: node.color,
+          transparent: true,
+          opacity: 0.2
+        })));
 
-          const connectionMaterial = new THREE.LineBasicMaterial({
-            color: node.color,
-            opacity: 0.3,
-            transparent: true,
-            linewidth: 2
+        const pCount = rng.int(2, 4);
+        for (let p = 0; p < pCount; p++) {
+          allParticles.push({
+            sx: node.position.x,
+            sy: node.position.y,
+            sz: node.position.z,
+            ex: target.position.x,
+            ey: target.position.y,
+            ez: target.position.z,
+            progress: rng.next(),
+            speed: rng.range(0.006, 0.018)
           });
-
-          const connection = new THREE.Line(connectionGeometry, connectionMaterial);
-          group.add(connection);
-
-          // Create flowing signal particles
-          const particleCount = 3 + Math.floor(Math.random() * 5);
-          for (let p = 0; p < particleCount; p++) {
-            const particleGeometry = new THREE.SphereGeometry(0.15, 8, 8);
-            const particleMaterial = new THREE.MeshBasicMaterial({
-              color: node.color,
-              transparent: true,
-              opacity: 0.8
-            });
-
-            const particle = new THREE.Mesh(particleGeometry, particleMaterial);
-
-            // Add flowing animation data
-            (particle as any).userData = {
-              startPos: node.position.clone(),
-              endPos: target.position.clone(),
-              progress: Math.random(),
-              speed: 0.008 + Math.random() * 0.015,
-              size: 0.15 + Math.random() * 0.1
-            };
-
-            group.add(particle);
-          }
+          particleColors.push(node.color.r, node.color.g, node.color.b);
         }
       });
     });
 
-    // Add neural activity waves
-    const waveCount = 8;
-    for (let w = 0; w < waveCount; w++) {
-      const waveGeometry = new THREE.RingGeometry(5 + w * 2, 5.5 + w * 2, 32);
-      const waveMaterial = new THREE.MeshBasicMaterial({
-        color: this.colorSchemes.semantic[w % this.colorSchemes.semantic.length],
-        transparent: true,
-        opacity: 0.1,
-        side: THREE.DoubleSide
+    if (allParticles.length > 0) {
+      const positions = new Float32Array(allParticles.length * 3);
+      allParticles.forEach((p, i) => {
+        positions[i * 3]     = p.sx + (p.ex - p.sx) * p.progress;
+        positions[i * 3 + 1] = p.sy + (p.ey - p.sy) * p.progress;
+        positions[i * 3 + 2] = p.sz + (p.ez - p.sz) * p.progress;
       });
 
-      const wave = new THREE.Mesh(waveGeometry, waveMaterial);
-      wave.rotation.x = Math.PI / 2;
+      const particleGeo = new THREE.BufferGeometry();
+      particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      particleGeo.setAttribute('color', new THREE.Float32BufferAttribute(particleColors, 3));
 
-      // Add wave animation data
-      (wave as any).userData = {
-        originalScale: 1,
-        waveSpeed: 0.01 + w * 0.002,
-        wavePhase: w * Math.PI / 4
+      const particleSys = new THREE.Points(particleGeo, new THREE.PointsMaterial({
+        size: 0.28,
+        vertexColors: true,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        depthWrite: false,
+        sizeAttenuation: true
+      }));
+
+      particleSys.userData = {
+        type: 'neuralParticles',
+        particles: allParticles,
+        positions
       };
+      group.add(particleSys);
+    }
 
+    for (let w = 0; w < 6; w++) {
+      const waveGeo = new THREE.RingGeometry(5 + w * 3, 5.5 + w * 3, 32);
+      const waveMat = new THREE.MeshBasicMaterial({
+        color: this.colorSchemes.semantic[w % this.colorSchemes.semantic.length],
+        transparent: true,
+        opacity: 0.08,
+        side: THREE.DoubleSide
+      });
+      const wave = new THREE.Mesh(waveGeo, waveMat);
+      wave.rotation.x = Math.PI / 2;
+      wave.userData = {
+        waveSpeed: 0.25 + w * 0.05,
+        wavePhase: w * Math.PI / 3
+      };
       group.add(wave);
     }
 
