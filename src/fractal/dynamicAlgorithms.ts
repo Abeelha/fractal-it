@@ -21,15 +21,15 @@ interface TagSignature {
 }
 
 class SeededRNG {
-  private s: number;
+  private state: number;
   constructor(seed: number) {
-    this.s = (seed ^ 0x9e3779b9) >>> 0 || 1;
+    this.state = (seed ^ 0x9e3779b9) >>> 0 || 1;
   }
   next(): number {
-    this.s ^= this.s << 13;
-    this.s ^= this.s >>> 17;
-    this.s ^= this.s << 5;
-    return (this.s >>> 0) / 4294967295;
+    this.state ^= this.state << 13;
+    this.state ^= this.state >>> 17;
+    this.state ^= this.state << 5;
+    return (this.state >>> 0) / 4294967296;
   }
   range(min: number, max: number): number {
     return min + this.next() * (max - min);
