@@ -20,6 +20,25 @@ interface TagSignature {
   connections: number;
 }
 
+class SeededRNG {
+  private s: number;
+  constructor(seed: number) {
+    this.s = (seed ^ 0x9e3779b9) >>> 0 || 1;
+  }
+  next(): number {
+    this.s ^= this.s << 13;
+    this.s ^= this.s >>> 17;
+    this.s ^= this.s << 5;
+    return (this.s >>> 0) / 4294967295;
+  }
+  range(min: number, max: number): number {
+    return min + this.next() * (max - min);
+  }
+  int(min: number, max: number): number {
+    return Math.floor(this.range(min, max + 1));
+  }
+}
+
 export class DynamicFractalAlgorithms {
   private static tagShapeMap: Record<string, string> = {
     div: 'square',
@@ -64,6 +83,11 @@ export class DynamicFractalAlgorithms {
     params: DynamicFractalParams
   ): THREE.Object3D {
     return this.generateHtmlDnaHelix(features, params);
+  }
+
+  private static pageSeed(features: HTMLFeatures, params: DynamicFractalParams): number {
+    const h = parseInt(features.structuralHash, 36) || 12345;
+    return Math.abs((h ^ params.colorSeed) >>> 0);
   }
 
   private static createTagSignatures(
