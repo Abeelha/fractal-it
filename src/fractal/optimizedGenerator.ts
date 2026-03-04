@@ -73,6 +73,20 @@ export class OptimizedFractalGenerator {
       description: 'Sacred geometry patterns from semantic structure',
       algorithm: 'mandala',
       performance: 'fast'
+    },
+    {
+      id: 'julia-set',
+      name: 'Julia Set Cloud',
+      description: 'Mathematical fractal — unique shape per website',
+      algorithm: 'juliaSet',
+      performance: 'fast'
+    },
+    {
+      id: 'l-system',
+      name: 'Fractal Tree',
+      description: 'Recursive L-System tree from page structure',
+      algorithm: 'lSystem',
+      performance: 'ultra-fast'
     }
   ];
 
@@ -227,6 +241,12 @@ export class OptimizedFractalGenerator {
 
       case 'mandala':
         return DynamicFractalAlgorithms.generateGeometricMandala(this.features, params);
+
+      case 'juliaSet':
+        return DynamicFractalAlgorithms.generateJuliaSetCloud(this.features, params);
+
+      case 'lSystem':
+        return DynamicFractalAlgorithms.generateLSystemTree(this.features, params);
 
       default:
         return DynamicFractalAlgorithms.generateTagBasedFractal(this.features, params);
