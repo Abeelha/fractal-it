@@ -355,7 +355,7 @@ const EnhancedPopup: React.FC = () => {
                     <div style={styles.infoGrid}>
                         <div style={styles.infoItem}>
                             <span style={styles.infoLabel}>MODES:</span>
-                            <span style={styles.infoValue}>5 OPTIMIZED</span>
+                            <span style={styles.infoValue}>{Object.keys(presets).length} OPTIMIZED</span>
                         </div>
                         <div style={styles.infoItem}>
                             <span style={styles.infoLabel}>STATUS:</span>
@@ -371,7 +371,7 @@ const EnhancedPopup: React.FC = () => {
                         </div>
                         <div style={styles.infoItem}>
                             <span style={styles.infoLabel}>CACHED:</span>
-                            <span style={styles.infoValue}>{state.cachedModes.size}/5</span>
+                            <span style={styles.infoValue}>{state.cachedModes.size}/{Object.keys(presets).length}</span>
                         </div>
                     </div>
                 </div>
