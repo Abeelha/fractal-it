@@ -956,6 +956,7 @@ export class DynamicFractalAlgorithms {
     features: HTMLFeatures,
     params: DynamicFractalParams
   ): THREE.Object3D {
+    const rng = new SeededRNG(this.pageSeed(features, params) + 400);
     const group = new THREE.Group();
 
     const complexity = features.domComplexity.totalElements;
@@ -1016,8 +1017,8 @@ export class DynamicFractalAlgorithms {
       // Add animated dewdrops
       const dewdrops = Math.floor(spokes * rings * 0.3);
       for (let d = 0; d < dewdrops; d++) {
-        const spoke = Math.floor(Math.random() * spokes);
-        const ring = 1 + Math.floor(Math.random() * (rings - 1));
+        const spoke = rng.int(0, spokes - 1);
+        const ring = 1 + rng.int(0, rings - 2);
 
         const angle = (spoke / spokes) * Math.PI * 2;
         const currentRadius = (radius * ring) / rings;
@@ -1026,7 +1027,7 @@ export class DynamicFractalAlgorithms {
         const z = Math.sin(angle) * currentRadius;
         const y = Math.sin(ring * 0.5) * (layer * 0.8);
 
-        const dewdropGeometry = new THREE.SphereGeometry(0.2 + Math.random() * 0.3, 8, 8);
+        const dewdropGeometry = new THREE.SphereGeometry(0.2 + rng.range(0, 0.3), 8, 8);
         const dewdropMaterial = new THREE.MeshPhongMaterial({
           color: 0xffffff,
           transparent: true,
@@ -1040,8 +1041,8 @@ export class DynamicFractalAlgorithms {
 
         // Add shimmering animation data
         (dewdrop as any).userData = {
-          shimmerSpeed: 0.02 + Math.random() * 0.03,
-          shimmerPhase: Math.random() * Math.PI * 2,
+          shimmerSpeed: 0.02 + rng.range(0, 0.03),
+          shimmerPhase: rng.next() * Math.PI * 2,
           originalOpacity: 0.8
         };
 
@@ -1049,7 +1050,7 @@ export class DynamicFractalAlgorithms {
       }
 
       // Add flying insects/particles
-      const insects = Math.floor(6 + Math.random() * 8);
+      const insects = rng.int(6, 13);
       for (let i = 0; i < insects; i++) {
         const insectGeometry = new THREE.SphereGeometry(0.1, 6, 6);
         const insectMaterial = new THREE.MeshPhongMaterial({
@@ -1061,22 +1062,22 @@ export class DynamicFractalAlgorithms {
         const insect = new THREE.Mesh(insectGeometry, insectMaterial);
 
         // Random starting position around the web
-        const startAngle = Math.random() * Math.PI * 2;
-        const startRadius = radius * 0.5 + Math.random() * radius * 0.5;
+        const startAngle = rng.next() * Math.PI * 2;
+        const startRadius = radius * 0.5 + rng.range(0, radius * 0.5);
         insect.position.set(
           Math.cos(startAngle) * startRadius,
-          (Math.random() - 0.5) * 10,
+          rng.range(-5, 5),
           Math.sin(startAngle) * startRadius
         );
 
         // Add flying animation data
         (insect as any).userData = {
-          flySpeed: 0.01 + Math.random() * 0.02,
+          flySpeed: 0.01 + rng.range(0, 0.02),
           flyRadius: startRadius,
           flyAngle: startAngle,
           flyHeight: insect.position.y,
-          bobSpeed: 0.03 + Math.random() * 0.02,
-          bobPhase: Math.random() * Math.PI * 2
+          bobSpeed: 0.03 + rng.range(0, 0.02),
+          bobPhase: rng.next() * Math.PI * 2
         };
 
         group.add(insect);
