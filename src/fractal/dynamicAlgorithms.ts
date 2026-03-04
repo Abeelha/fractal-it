@@ -649,9 +649,9 @@ export class DynamicFractalAlgorithms {
         const angle = t * Math.PI * 8 + hi * Math.PI / 4;
         const height = t * totalHeight - totalHeight / 2;
         nucleotidePositions.push(new THREE.Vector3(
-          Math.cos(angle) * radius,
-          height,
-          Math.sin(angle) * radius
+          Math.cos(angle) * radius + rng.range(-0.2, 0.2),
+          height + rng.range(-0.15, 0.15),
+          Math.sin(angle) * radius + rng.range(-0.2, 0.2)
         ));
         nucleotideColors.push(color.clone());
       }
@@ -676,6 +676,7 @@ export class DynamicFractalAlgorithms {
     if (nucleotidePositions.length > 0) {
       const nucleotideGeo = new THREE.SphereGeometry(0.45, 8, 8);
       const nucleotideMat = new THREE.MeshPhongMaterial({
+        emissive: new THREE.Color(1, 1, 1),
         emissiveIntensity: 0.55,
         transparent: false
       });
@@ -702,7 +703,6 @@ export class DynamicFractalAlgorithms {
       })));
     }
 
-    void rng;
     return group;
   }
 
