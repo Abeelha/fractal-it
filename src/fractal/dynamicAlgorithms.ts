@@ -1222,4 +1222,132 @@ export class DynamicFractalAlgorithms {
 
     return group;
   }
+
+  static generateLSystemTree(
+    features: HTMLFeatures,
+    params: DynamicFractalParams
+  ): THREE.Object3D {
+    const group = new THREE.Group();
+    const rng = new SeededRNG(this.pageSeed(features, params) + 500);
+
+    // Map page features to tree parameters
+    const depth = Math.min(Math.max(features.semanticStructure.nestingDepth, 3), 6);
+    const branchAngle = (18 + rng.range(0, 25)) * Math.PI / 180;
+    const scaleRatio = rng.range(0.58, 0.72);
+    const numBranches = features.contentMetrics.linkCount > 20 ? 3 : 2;
+
+    interface Branch {
+      start: THREE.Vector3;
+      end: THREE.Vector3;
+      depth: number;
+    }
+    const branches: Branch[] = [];
+
+    const grow = (
+      start: THREE.Vector3,
+      dir: THREE.Vector3,
+      length: number,
+      currentDepth: number
+    ) => {
+      if (currentDepth === 0 || length < 0.15) return;
+
+      const end = start.clone().add(dir.clone().multiplyScalar(length));
+      branches.push({ start, end, depth: currentDepth });
+
+      for (let b = 0; b < numBranches; b++) {
+        const spreadAngle = ((b / numBranches) - 0.5) * Math.PI * 0.9 + rng.range(-0.1, 0.1);
+        const tiltAngle = branchAngle + rng.range(-0.12, 0.12);
+
+        const newDir = dir.clone();
+        newDir.applyAxisAngle(
+          new THREE.Vector3(rng.range(-1, 1), 0, rng.range(-1, 1)).normalize(),
+          tiltAngle
+        );
+        newDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), spreadAngle);
+        newDir.normalize();
+
+        grow(end, newDir, length * scaleRatio, currentDepth - 1);
+      }
+    };
+
+    grow(
+      new THREE.Vector3(0, -9, 0),
+      new THREE.Vector3(0, 1, 0),
+      4.5,
+      depth
+    );
+
+    // Batch everything into one LineSegments draw call
+    const positions: number[] = [];
+    const colors: number[] = [];
+
+    // Base hue from page
+    let baseHue = (params.colorSeed % 360) / 360;
+    if (features.colorPalette.length > 0) {
+      try {
+        const hsl = { h: 0, s: 0, l: 0 };
+        new THREE.Color(features.colorPalette[0]).getHSL(hsl);
+        if (hsl.s > 0.1) baseHue = hsl.h;
+      } catch (_) { /* keep */ }
+    }
+
+    branches.forEach(branch => {
+      const t = branch.depth / depth; // 1 = trunk, 0 = tips
+      const hue = (baseHue + (1 - t) * 0.35) % 1;
+      const lightness = 0.3 + (1 - t) * 0.45;
+      const c = new THREE.Color().setHSL(hue, 0.85, lightness);
+
+      positions.push(
+        branch.start.x, branch.start.y, branch.start.z,
+        branch.end.x, branch.end.y, branch.end.z
+      );
+      colors.push(c.r, c.g, c.b, c.r * 0.75, c.g * 0.75, c.b * 0.75);
+    });
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+    group.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.95,
+      blending: THREE.AdditiveBlending
+    })));
+
+    // Particle cloud at branch tips (adds sparkle to the tips)
+    const tipPositions: number[] = [];
+    const tipColors: number[] = [];
+    branches
+      .filter(b => b.depth === 1)
+      .forEach(b => {
+        const hue = (baseHue + 0.35) % 1;
+        const c = new THREE.Color().setHSL(hue, 1, 0.7);
+        // A small cluster around each tip
+        for (let i = 0; i < 4; i++) {
+          tipPositions.push(
+            b.end.x + rng.range(-0.4, 0.4),
+            b.end.y + rng.range(-0.4, 0.4),
+            b.end.z + rng.range(-0.4, 0.4)
+          );
+          tipColors.push(c.r, c.g, c.b);
+        }
+      });
+
+    if (tipPositions.length > 0) {
+      const tipGeo = new THREE.BufferGeometry();
+      tipGeo.setAttribute('position', new THREE.Float32BufferAttribute(tipPositions, 3));
+      tipGeo.setAttribute('color', new THREE.Float32BufferAttribute(tipColors, 3));
+      group.add(new THREE.Points(tipGeo, new THREE.PointsMaterial({
+        size: 0.18,
+        vertexColors: true,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        depthWrite: false,
+        sizeAttenuation: true
+      })));
+    }
+
+    return group;
+  }
 }
